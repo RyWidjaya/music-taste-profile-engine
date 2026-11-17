@@ -1,0 +1,26 @@
+{
+    "k": 7,
+    "feature_cols": [
+        "danceability",
+        "speechiness",
+        "instrumentalness",
+        "liveness",
+        "valence",
+        "tempo",
+        "intensity"
+    ],
+    "intensity_group": [
+        "energy",
+        "loudness",
+        "acousticness"
+    ],
+    "personas": {
+        "0": "Upbeat Dance & Sunny Pop",
+        "1": "Chill Acoustic & Moody Ballads",
+        "2": "Raw Energy & High-Octane Rock",
+        "3": "Rhythmic Flow & Hip-Hop Beats",
+        "4": "Hypnotic Beats & Electronic Club",
+        "5": "Deep Ambient & Atmospheric Chill",
+        "6": "Alternative Edge & Dark Grunge"
+    }
+}
