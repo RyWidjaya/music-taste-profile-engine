@@ -82,7 +82,10 @@ To make the codebase maintainable, scalable, and easy to debug, we strictly deco
 - **Joblib**: Efficient serialization of NumPy arrays and Scikit-learn estimators.
 
 ### The Pipeline Steps
-1. **Ingestion & Deduplication**: Ensuring training data is free of bias (e.g. repeated track IDs across multiple genres).
+1. **Ingestion, Deduplication & Catalog Augmentation**:
+   - Baseline deduplication: Removing cross-genre duplicate tracks that skew cluster centroids.
+   - Incremental ingestion: Augmenting the baseline with modern releases (up through 2026) and expanded genre representations (Gen 3–5 K-Pop) via streaming batch extraction from large-scale parquet warehouses.
+   - Resilient data handling: Accommodating third-party API deprecations (such as Spotify closing its public audio-features endpoint in late 2024) using conformed schema pipelines.
 2. **Feature Engineering & Transformation**:
    - Selecting purely acoustic features (ignoring metadata like track title or popularity).
    - Correcting scale and skew (e.g. `PowerTransformer` / `StandardScaler`).
@@ -184,7 +187,7 @@ The only prerequisite for effortless frontend vibecoding is having a **predictab
    - Taste Diversity / Entropy Gauge.
    - Percentile call-out badges (e.g. *"Your acousticness is higher than 84% of listeners"*).
 3. **Interactive Sound Map**:
-   - 2D Scatter plot of the 89K song universe in background, with the user's selected songs plotted as glowing pins.
+   - 2D Scatter plot of the 128K song universe in background, with the user's selected songs plotted as glowing pins.
 4. **Recommended Tracks**:
    - Cards displaying recommended songs with native Spotify embedded iframes:
      ```html
@@ -221,7 +224,7 @@ Here is the exact step-by-step path of data through the entire system:
 [ Backend: Taste Metrics Engine ]
   │ Percentage breakdown calculated per persona.
   │ Shannon entropy computed for listening diversity score.
-  │ scipy percentile ranking calculated against the 89K population baseline.
+  │ scipy percentile ranking calculated against the 128K population baseline.
   │ Nearest neighbors found via cosine similarity for recommended songs.
   ▼
 [ Backend: HTTP Response ]
@@ -242,41 +245,40 @@ As we transition from raw research notebooks to a production-ready repository, t
 ```
 KMeans-Music-Taste-Full-Stack/
 ├── data/
-│   ├── spotify_tracks_raw.csv        # Original raw data
-│   └── spotify_tracks_clean.csv      # Cleaned, deduplicated data (89K rows)
+│   ├── spotify-tracks-dataset-detailed.csv # Baseline raw 114k Spotify dataset
+│   ├── spotify_tracks_clean.csv            # Cleaned baseline data (89.5K rows)
+│   ├── spotify_master_2026.csv             # Conformed production dataset (127.9K rows)
+│   └── spotify_tracks_modeled.csv          # Modeled 127.9K dataset with clusters & 2D PCA
 │
-├── notebooks/
-│   ├── 01_cleaning.ipynb             # Phase 1: Data audit & cleaning
-│   ├── 02_eda.ipynb                  # Phase 1: Feature distributions & correlations
-│   ├── 03_clustering_and_eval.ipynb  # Phases 2-5: k sweep, PCA, persona naming
-│   └── 04_engine_prototype.ipynb     # Phase 6: taste_profile() notebook prototype
+├── 01_cleaning.ipynb                       # Step 1: Data audit, deduplication & null handling
+├── 02_eda.ipynb                            # Step 2: Feature distributions & correlations
+├── 03_data_augmentation.ipynb              # Step 3: 2025-2026 Kaggle ingestion & curated 2026 title tracks
+├── 04_ml_pipeline.ipynb                    # Step 4: Yeo-Johnson, 1D PCA, 7-cluster KMeans & taste engine
 │
-├── models/                           # Saved artifacts (joblib)
-│   ├── scaler.joblib                 # Preprocessing scaler / transformer
-│   ├── kmeans_model.joblib           # Fitted KMeans clustering model
-│   ├── pca_2d.joblib                 # Fitted 2D PCA projector
-│   └── persona_metadata.json         # Persona names, colors, and definitions
+├── models/                                 # Saved artifacts (joblib)
+│   ├── power_transformer.joblib            # Preprocessing Yeo-Johnson transformer
+│   ├── pca_intensity.joblib                # 1D PCA intensity model (loudness, energy, acousticness)
+│   ├── kmeans_model.joblib                 # Fitted 7-cluster KMeans model
+│   ├── pca_2d.joblib                       # Fitted 2D PCA sound-map projector
+│   └── persona_metadata.json               # Persona names, cluster labels, and definitions
 │
-├── backend/                          # Tier 2: FastAPI application
-│   ├── main.py                       # App entrypoint, CORS, lifespan startup
-│   ├── schemas.py                    # Pydantic request/response models
-│   ├── services/
-│   │   ├── recommender.py            # Cosine-similarity nearest neighbors
-│   │   └── taste_engine.py           # Breakdown %, entropy, percentiles
-│   └── requirements.txt              # FastAPI, uvicorn, scikit-learn, joblib
+├── backend/                                # Tier 2: FastAPI application
+│   ├── main.py                             # App entrypoint, CORS, lifespan startup & routes
+│   └── schemas.py                          # Pydantic request/response models
 │
-├── frontend/                         # Tier 3: Web UI
-│   ├── index.html                    # Main application HTML
+├── frontend/                               # Tier 3: Web UI
+│   ├── index.html                          # Main application HTML
 │   ├── css/
-│   │   └── style.css                 # Tailwind / custom styling
+│   │   └── style.css                       # Tailwind / custom styling
 │   └── js/
-│       ├── api.js                    # fetch() calls to FastAPI endpoints
-│       ├── charts.js                 # Chart.js donut and PCA visualizers
-│       └── app.js                    # UI state and event handlers
+│       ├── api.js                          # fetch() calls to FastAPI endpoints
+│       ├── charts.js                       # Chart.js donut and PCA visualizers
+│       └── app.js                          # UI state and event handlers
 │
-├── project_plan.md                   # Overall project roadmap
-├── full_stack_ml_guide.md            # This reference guide
-└── README.md                         # Portfolio project showcase
+├── project_plan.md                         # Overall project roadmap
+├── full_stack_ml_guide.md                  # This reference guide
+├── requirements.txt                        # Python dependencies
+└── README.md                               # Portfolio project showcase
 ```
 
 ---
@@ -287,7 +289,7 @@ KMeans-Music-Taste-Full-Stack/
 | :--- | :--- | :--- |
 | **1. Training-Serving Skew** | Preprocessing in the API is coded differently than in the training notebook. | Always export the fitted `StandardScaler` / `PowerTransformer` as a `.joblib` object and call `.transform()` in the API. |
 | **2. Cold Inference Latency** | Loading the `.joblib` model inside the request function (`def endpoint(...)`), reading disk on every request. | Load models once at startup using FastAPI's `@asynccontextmanager` lifespan event into global or app state. |
-| **3. Giant Response Payloads** | Sending all 89,000 track coordinates to the frontend on every request. | Pre-generate downsampled background points once or serve them via static asset / CDN. |
+| **3. Giant Response Payloads** | Sending all 128,000 track coordinates to the frontend on every request. | Pre-generate downsampled background points once or serve them via static asset / CDN. |
 | **4. CORS Blocking** | Frontend (`localhost:3000`) tries to call Backend (`localhost:8000`) and the browser blocks it. | Add `CORSMiddleware` in FastAPI with explicit allowed origins. |
 | **5. Notebook Coupling** | Trying to `import` functions directly from a `.ipynb` file into the API. | Clean ML logic into modular Python scripts (`.py`) before building the backend. |
 

@@ -37,9 +37,9 @@ async def lifespan(app: FastAPI):
     data_path = os.path.join(base_dir, "data", "spotify_tracks_modeled.csv")
     models_dir = os.path.join(base_dir, "models")
 
-    # 1. Load the fully modeled 89,583-track dataset into memory
+    # 1. Load the fully modeled 127,900-track dataset into memory
     if not os.path.exists(data_path):
-        raise FileNotFoundError(f"Modeled data not found at {data_path}. Run ml_pipeline.ipynb first.")
+        raise FileNotFoundError(f"Modeled data not found at {data_path}. Run 04_ml_pipeline.ipynb first.")
     artifacts["data"] = pd.read_csv(data_path)
     print(f" Loaded dataset: {len(artifacts['data']):,} tracks")
 

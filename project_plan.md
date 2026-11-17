@@ -1,6 +1,6 @@
 # What's My Sound? — A Music Taste Breakdown Built on k-Means
 
-A portfolio project that clusters 89,740 real Spotify tracks into data-driven "sound personas," then tells a user what percentage of their listening falls into each one — like a music-taste personality quiz, powered by unsupervised learning instead of a canned genre label.
+A portfolio project that clusters 127,900+ real Spotify tracks (spanning up through 2026, with curated 3rd–5th gen K-Pop and modern hits) into data-driven "sound personas," then tells a user what percentage of their listening falls into each one — like a music-taste personality quiz, powered by unsupervised learning instead of a canned genre label.
 
 **Why this beats a generic clustering demo:** it doesn't predict the `track_genre` column that's already in the data (that's classification wearing a clustering costume). It lets k-means *invent its own* taste categories from raw audio features, independent of genre tags, and then measures a real person against them. That's a cleaner story for an interview: *"I didn't predict existing genre labels — I let the model define its own taste categories, then built a tool to score a listener against them."*
 
@@ -21,12 +21,16 @@ This project splits cleanly into three layers, each with a different relationshi
 
 ---
 
-## Dataset
+## Dataset & Ingestion Pipeline
 
-- **Source:** [114K Spotify Tracks](https://github.com/sai-chaitanya-reddy/spotify-tracks-dataset) — CC0 / public domain, originally collected via the Spotify Web API.
-- **Provided files** (sent alongside this plan):
-  - `spotify_tracks_clean.csv` — **use this one.** 89,740 unique tracks after deduping \~24K rows that were repeated across multiple genre tags (e.g. the same song listed under both "pop" and "k-pop"). Keeping those duplicates would have silently biased your cluster centroids toward over-represented songs — worth a sentence in your README, it's a real data-quality catch.
-  - `spotify_tracks_raw.csv` — the original 114,000-row file, in case you want to show the cleaning step yourself in a notebook.
+- **Sources:** 
+  1. [114K Spotify Tracks](https://github.com/sai-chaitanya-reddy/spotify-tracks-dataset) — CC0 / public domain baseline dataset collected via the Spotify Web API.
+  2. `spotify-huge-audio-features.parquet` — 56.2M-row Spotify warehouse dataset used for catalog augmentation.
+- **Data Evolution & Ingestion Workflow:**
+  - `01_cleaning.ipynb` — Deduplicates the baseline 114k Spotify dataset down to `data/spotify_tracks_clean.csv` (89,583 unique tracks after eliminating ~24K cross-genre duplicate tags and nulls).
+  - `02_eda.ipynb` — Explores audio feature distributions, zero-inflation in speechiness/instrumentalness, and multicollinearity in the energy/loudness/acousticness triad.
+  - `03_data_augmentation.ipynb` — Incremental ingestion pipeline that scans the 56M-row Parquet warehouse (`spotify-huge-audio-features.parquet`) in memory-safe PyArrow batches, filters for popularity, enforces strict exact-artist matching for Gen 3–5 K-Pop, and resolves true genres across 31,000+ known artists. Integrates curated 2026 title tracks (*Hearts2Hearts – Lemon Tang*, *NMIXX – Heavy Serenade*, *BABYMONSTER – DESERVE / CHOOM*, *aespa – Lemonade*, *IVE – Blackhole*, etc.) to gracefully handle Spotify's late-2024 deprecation of public audio features. Outputs `data/spotify_master_2026.csv` (127,900 unique tracks with 0 nulls across 20 schema-conformed features).
+  - `04_ml_pipeline.ipynb` — Executes production Yeo-Johnson power transformations, 1D PCA intensity extraction, 2D PCA sound-map projections, optimal $k=7$ KMeans training, cluster persona naming, and the complete `taste_profile()` inference engine.
 - **Columns you'll actually cluster on:** `danceability`, `energy`, `loudness`, `speechiness`, `acousticness`, `instrumentalness`, `liveness`, `valence`, `tempo` (9 numeric audio-character features). Ignore `popularity`, `duration_ms`, `key`, `mode`, `time_signature` for clustering — they're metadata, not "sound character."
 - **Known quality note:** silhouette scores on this data land around 0.17–0.20 for k = 4–8. That's normal and expected for real audio data (unlike the clean synthetic blobs in your practice sets) — state it honestly in your write-up rather than cherry-picking a flattering number. It's also a good excuse to bring in the validation techniques in Phase 5.
 
@@ -46,7 +50,7 @@ Fit `PCA` to 2 components on the scaled features so the full dataset can be plot
 
 ## Phase 4 — Choose k and fit the model *(Tier 1 — ML pipeline)*
 
-Run the elbow method (inertia vs. k) and a silhouette sweep (k = 3 to 12) like your practice problems, but on a subsample for speed since `silhouette_score` is O(n²). Pick k with a documented justification, not just "highest silhouette" — cross-check against how many genres are actually present. Fit the final `KMeans` on all 89,740 tracks and save it with `joblib`.
+Run the elbow method (inertia vs. k) and a silhouette sweep (k = 3 to 12) like your practice problems, but on a subsample for speed since `silhouette_score` is O(n²). Pick k with a documented justification, not just "highest silhouette" — cross-check against how many genres are actually present. Fit the final `KMeans` on all 127,900 tracks and save it with `joblib`.
 
 ## Phase 5 — Name and validate the clusters *(Tier 1 — ML pipeline)*
 
@@ -96,8 +100,8 @@ This is the feature that makes the project unique:
 
 ### Getting songs from the user — pick your complexity
 
-- **Simple (recommended to start):** a search box where the user types/selects \~10–20 song names from the 89K dataset via autocomplete. No auth, no external API calls, no rate limits. Ships in a weekend on top of the pipeline you already have.
-- **Stretch (do this later if time allows):** Spotify OAuth login to pull the user's actual playlist/top-tracks track IDs (this endpoint is still open), then join those IDs against your local dataset by `track_id` to fetch audio features — skip Spotify's `audio-features`/`audio-analysis` endpoints entirely, since Spotify locked those down for new developer apps in late 2024. Expect real coverage gaps (not every song a user picks will be in your 89K-track dataset) — state that honestly rather than hiding it.
+- **Simple (recommended to start):** a search box where the user types/selects \~10–20 song names from the 128K dataset via autocomplete. No auth, no external API calls, no rate limits. Ships in a weekend on top of the pipeline you already have.
+- **Stretch (do this later if time allows):** Spotify OAuth login to pull the user's actual playlist/top-tracks track IDs (this endpoint is still open), then join those IDs against your local dataset by `track_id` to fetch audio features — skip Spotify's `audio-features`/`audio-analysis` endpoints entirely, since Spotify locked those down for new developer apps in late 2024. Expect real coverage gaps (not every song a user picks will be in your 128K-track dataset) — state that honestly rather than hiding it.
 
 ## Phase 7 — Backend API *(Tier 2 — new territory, build + understand)*
 
@@ -128,4 +132,4 @@ Frontend on Vercel/Netlify, backend on Render/Railway/Fly.io — or bundle the w
 
 ## Draft resume bullet (tune once built)
 
-*"Built and deployed an unsupervised music-taste analysis web app clustering 89K+ Spotify tracks by audio characteristics (k-means, PCA, scikit-learn); designed a taste-breakdown engine that scores a listener's song history against data-derived sound personas using percentile comparisons and Shannon-entropy diversity scoring, with a content-based recommender surfaced from within-cluster nearest neighbors."*
+*"Built and deployed an unsupervised music-taste analysis web app clustering 128K+ Spotify tracks by audio characteristics (k-means, PCA, scikit-learn); designed a taste-breakdown engine that scores a listener's song history against data-derived sound personas using percentile comparisons and Shannon-entropy diversity scoring, with a content-based recommender surfaced from within-cluster nearest neighbors."*

@@ -15,12 +15,12 @@
         "acousticness"
     ],
     "personas": {
-        "0": "Upbeat Dance & Sunny Pop",
-        "1": "Chill Acoustic & Moody Ballads",
-        "2": "Raw Energy & High-Octane Rock",
-        "3": "Rhythmic Flow & Hip-Hop Beats",
+        "0": "Raw Energy & High-Octane Rock",
+        "1": "Rhythmic Flow & Hip-Hop Beats",
+        "2": "Upbeat Dance & Sunny Pop",
+        "3": "Alternative Edge & Dark Grunge",
         "4": "Hypnotic Beats & Electronic Club",
-        "5": "Deep Ambient & Atmospheric Chill",
-        "6": "Alternative Edge & Dark Grunge"
+        "5": "Chill Acoustic & Moody Ballads",
+        "6": "Deep Ambient & Atmospheric Chill"
     }
 }

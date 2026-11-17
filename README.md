@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend%20API-teal.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An end-to-end applied machine learning system that clusters **89,500+ Spotify tracks** into data-driven **Sound Personas** using unsupervised learning, then delivers personalized listener taste breakdowns, diversity scores, population percentiles, and within-cluster recommendations.
+An end-to-end applied machine learning system that clusters **127,900+ Spotify tracks (spanning up through 2026)** into data-driven **Sound Personas** using unsupervised learning, then delivers personalized listener taste breakdowns, diversity scores, population percentiles, and within-cluster recommendations.
 
 ---
 
@@ -18,8 +18,8 @@ This project takes an **unsupervised approach**: rather than relying on noisy, h
 
 ```
                   ┌─────────────────────────────────────────┐
-                  │          Raw Spotify Audio Data         │
-                  │        (89,583 unique track rows)       │
+                  │    Spotify Audio Data (2024 - 2026)     │
+                  │       (127,900 unique track rows)       │
                   └────────────────────┬────────────────────┘
                                        │
                     ┌──────────────────┴──────────────────┐
@@ -69,10 +69,14 @@ This project takes an **unsupervised approach**: rather than relying on noisy, h
 
 ## 🔬 Machine Learning Pipeline & Engineering Decisions
 
-### 1. Data Cleaning & Representation Bias Removal
-* The raw 114k Spotify dataset contained ~24,000 duplicate tracks due to cross-genre tagging (e.g., the same song labeled as both "pop" and "dance").
-* Retaining duplicates would have silently pulled cluster centroids toward over-represented commercial tracks. 
-* Deduplicated the dataset strictly down to **89,583 unique songs**.
+### 1. Data Cleaning & Catalog Augmentation (2024–2026 Extension)
+* **Deduplication of Baseline Data**: The raw 114k Spotify dataset contained ~24,000 duplicate tracks due to cross-genre tagging (e.g., the same song labeled as both "pop" and "dance"). Retaining duplicates would have silently pulled cluster centroids toward over-represented commercial tracks. Cleaned strictly down to **89,583 unique baseline songs**.
+* **Incremental Ingestion & Recency Augmentation**: The original dataset only spanned through 2024 and lacked major recent releases as well as comprehensive Gen 3–5 K-Pop representation. To modernize the catalog, we extracted recent high-popularity releases from a 56M-row Spotify warehouse dataset (`spotify-huge-audio-features.parquet`).
+* **Noise Filtering & Schema Preservation**:
+  * Uncurated scraping would ingest millions of obscure/spam uploads; applied popularity thresholds (`popularity >= 18` for curated K-Pop artists, `popularity >= 50` for general 2025–2026 releases).
+  * Implemented exact-artist matching to prevent false-positive genre contamination (e.g., *Bibi Blocksberg* radio plays or *Dean Lewis* pop tracks accidentally tagged as K-Pop).
+  * Handled the late-2024 deprecation of Spotify's public Audio Features API by curating major 2026 comebacks (*Hearts2Hearts – Lemon Tang*, *NMIXX – Heavy Serenade*, *BABYMONSTER – DESERVE / CHOOM*, *aespa – Lemonade*, *IVE – Blackhole*, etc.) with acoustic profiling.
+  * Reached a clean, production-ready dataset of **127,900 unique songs** with 0 nulls.
 
 ### 2. Distribution Correction (Yeo-Johnson)
 * Features like `speechiness`, `instrumentalness`, and `liveness` exhibit heavy positive skew and zero-inflation.
@@ -96,13 +100,13 @@ By analyzing standardized Z-scores across audio features, corroborating with top
 
 | Cluster | Sound Persona | Distinguishing Acoustic Signature | Common Genres / Representative Tracks |
 | :---: | :--- | :--- | :--- |
-| **0** | **Upbeat Dance & Sunny Pop** | High danceability (+0.74), High valence (+0.89) | Reggaeton, Salsa, Disco, Latin Pop |
-| **1** | **Chill Acoustic & Moody Ballads** | Low intensity (-1.29), Low valence (-0.45) | Acoustic, Folk, Singer-Songwriter, Blues |
-| **2** | **Raw Energy & High-Octane Rock** | High liveness (+1.59), High intensity (+0.56) | Hard Rock, Punk, Live Performances |
-| **3** | **Rhythmic Flow & Hip-Hop Beats** | High speechiness (+1.83), High danceability (+0.69) | Hip-Hop, Rap, R&B, Dancehall |
-| **4** | **Hypnotic Beats & Electronic Club** | High instrumentalness (+1.44), High tempo (+0.22) | Techno, House, EDM, Trance |
-| **5** | **Deep Ambient & Sleep Drift** | Ultra-low intensity (-1.89), High instrumentalness (+1.26) | Ambient, Classical, Sleep, New-Age |
-| **6** | **Alternative Edge & Dark Grunge** | High intensity (+0.89), Low danceability (-0.79) | Grunge, Metal, Alternative Rock, Punk-Rock |
+| **0** | **Raw Energy & High-Octane Rock** | Ultra-high intensity (+1.55), High liveness (+0.70), High tempo (+0.57) | Metalcore, Heavy Metal, Hard Rock, Punk |
+| **1** | **Rhythmic Flow & Hip-Hop Beats** | High speechiness (+1.52), High danceability (+0.83) | Hip-Hop, Rap, Dancehall, Trap |
+| **2** | **Upbeat Dance & Sunny Pop** | High valence (+0.83), High danceability (+0.69), High intensity (+0.69) | Dance-Pop, Disco, Salsa, Forro, Upbeat K-Pop |
+| **3** | **Alternative Edge & Dark Grunge** | High tempo (+0.80), Low intensity (-0.98), Low speechiness (-0.66) | Alternative, Indie Rock, Dark Wave, Cantopop |
+| **4** | **Hypnotic Beats & Electronic Club** | Ultra-high instrumentalness (+1.87), High intensity (+0.86) | Techno, House, EDM, Breakbeat, Trance |
+| **5** | **Chill Acoustic & Moody Ballads** | Low intensity (-1.31), Low tempo (-1.02), Low speechiness (-0.65) | Acoustic, Folk, Singer-Songwriter, Romance, Ballads |
+| **6** | **Deep Ambient & Atmospheric Chill** | Ultra-low intensity (-2.70), High instrumentalness (+1.90), Low valence (-1.09) | Ambient, Classical, Sleep, New-Age, Meditation |
 
 ---
 
@@ -115,7 +119,7 @@ The core inference engine receives a list of Spotify `track_id`s and computes:
    $$H = -\frac{\sum p_i \ln(p_i)}{\ln(7)}$$
    * `0.0` = hyper-focused listener (100% in one persona).
    * `1.0` = perfectly eclectic listener (equal split across all 7 personas).
-3. **Comparative Percentiles**: Benchmarks user audio traits (*danceability, energy, valence, acousticness*) against the 89k-track population using `scipy.stats.percentileofscore`.
+3. **Comparative Percentiles**: Benchmarks user audio traits (*danceability, energy, valence, acousticness*) against the 128k-track population using `scipy.stats.percentileofscore`.
 4. **Within-Cluster Recommendations**: Finds the centroid of the user's most common persona and retrieves the top 3 nearest-neighbor tracks (smallest Euclidean distance) not already in their library.
 5. **2D Sound Map Coordinates**: Emits $(x, y)$ PCA coordinates for each song to plot them directly on the global interactive sound map.
 
@@ -125,24 +129,27 @@ The core inference engine receives a list of Spotify `track_id`s and computes:
 
 ```
 ├── data/
-│   ├── spotify_tracks_clean.csv       # 89,583 cleaned, deduplicated tracks
-│   └── spotify_tracks_modeled.csv     # Modeled tracks with cluster, persona & 2D PCA
+│   ├── spotify-tracks-dataset-detailed.csv # Baseline raw 114k Spotify dataset
+│   ├── spotify_tracks_clean.csv            # Cleaned baseline dataset (89,583 tracks)
+│   ├── spotify_master_2026.csv             # Augmented 2026 master dataset (127,900 tracks)
+│   └── spotify_tracks_modeled.csv          # 127.9k modeled tracks with cluster, persona & 2D PCA
 ├── models/
-│   ├── kmeans_model.joblib            # Trained 7-cluster KMeans model
-│   ├── power_transformer.joblib       # Fitted Yeo-Johnson transformer
-│   ├── pca_intensity.joblib           # 1D PCA intensity triad model
-│   ├── pca_2d.joblib                  # 2D PCA projection model
-│   └── persona_metadata.json          # Persona names and feature schemas
-├── backend/                           # FastAPI REST API (Tier 2)
-│   ├── main.py                        # App entry point, lifespan loader & routes
-│   └── schemas.py                     # Pydantic request/response schemas
-├── 01_cleaning.ipynb                  # Data inspection & deduplication
-├── 02_eda.ipynb                       # Skew analysis & feature correlations
-├── ml_pipeline.ipynb                  # Transformation, clustering & taste engine
-├── full_stack_ml_guide.md             # Architectural & engineering design guide
-├── project_plan.md                    # Step-by-step milestone specification
-├── requirements.txt                   # Python dependencies
-└── README.md                          # Project documentation
+│   ├── kmeans_model.joblib                 # Trained 7-cluster KMeans model (128k tracks)
+│   ├── power_transformer.joblib            # Fitted Yeo-Johnson transformer
+│   ├── pca_intensity.joblib                # 1D PCA intensity triad model (energy/loudness/acousticness)
+│   ├── pca_2d.joblib                       # 2D PCA sound-map projection model
+│   └── persona_metadata.json               # Persona names, cluster labels & feature schemas
+├── backend/                                # FastAPI REST API (Tier 2)
+│   ├── main.py                             # App entry point, lifespan loader & REST routes
+│   └── schemas.py                          # Pydantic request/response schemas
+├── 01_cleaning.ipynb                       # Step 1: Baseline data audit, deduplication & null handling
+├── 02_eda.ipynb                            # Step 2: Exploratory data analysis, distributions & multicollinearity
+├── 03_data_augmentation.ipynb              # Step 3: 2025-2026 Kaggle ingestion & curated title track synthesis
+├── 04_ml_pipeline.ipynb                    # Step 4: Production Yeo-Johnson, 1D PCA, KMeans & taste engine
+├── full_stack_ml_guide.md                  # Comprehensive full-stack ML architectural guide
+├── project_plan.md                         # Milestone project roadmap & technical tasks
+├── requirements.txt                        # Python dependencies
+└── README.md                               # Project documentation
 ```
 
 ---
@@ -166,9 +173,13 @@ pip install -r requirements.txt
 ```
 
 ### 2. Run the Notebooks
-Launch Jupyter Notebook to explore the model training and evaluation:
+Launch Jupyter Notebook to explore data preparation, augmentation, and model training:
 ```bash
-jupyter notebook ml_pipeline.ipynb
+# Sequential notebook workflow (01 -> 02 -> 03 -> 04):
+jupyter notebook 01_cleaning.ipynb
+jupyter notebook 02_eda.ipynb
+jupyter notebook 03_data_augmentation.ipynb
+jupyter notebook 04_ml_pipeline.ipynb
 ```
 
 ---
