@@ -17,6 +17,7 @@ import joblib
 import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 # Data contracts (Pydantic schemas)
@@ -43,6 +44,9 @@ from backend.engine import taste_profile
 # artifacts["data"] or artifacts["kmeans"] directly from RAM without reloading 
 artifacts = {}
 
+# Project root directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 @asynccontextmanager # used to split server execution into two distinct phases separated by the yield keyword
 async def lifespan(app: FastAPI):
     """
@@ -58,7 +62,7 @@ async def lifespan(app: FastAPI):
 
     # Construct OS-independent paths relative to project root
     # Creates robust full (absolute) paths dynamically at runtime by combining the relative pieces we have
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # returns the full path to the project's root folder (to construct full paths from relative pieces)
+    base_dir = BASE_DIR # returns the full path to the project's root folder (to construct full paths from relative pieces)
     data_path = os.path.join(base_dir, "data", "spotify_tracks_modeled.csv")
     models_dir = os.path.join(base_dir, "models")
 
@@ -135,6 +139,16 @@ app.add_middleware( # .add_middleware() adds functionality that intercepts/proce
 #   3. Delegate heavy math to `engine.py`.
 #   4. Return the result.
 # ==============================================================================
+
+# ─── ROUTE: SERVE FRONTEND (HTTP GET /) ───────────────────────────────────────
+@app.get("/", include_in_schema=False)
+def serve_index():
+    """Serves the single-page frontend application at the root URL."""
+    index_path = os.path.join(BASE_DIR, "frontend", "index.html")
+    if not os.path.exists(index_path):
+        raise HTTPException(status_code=404, detail="frontend/index.html not found")
+    return FileResponse(index_path)
+
 
 # ─── ROUTE 0: SYSTEM HEALTH CHECK ─────────────────────────────────────────────
 # Cloud hosts (Render, AWS, GCP) automatically ping this route every 10-30s
@@ -236,3 +250,20 @@ def get_taste_profile(request: TasteProfileRequest):
     # Delegate the pure mathematical computation to backend/engine.py
     # engine.py is imported which contains the KMeans Algorithm function required which is called upon and its output is returned
     return taste_profile(track_ids, data)
+
+
+# ─── ROUTE 3: SAMPLED PCA POINTS FOR SOUND MAP (HTTP GET) ─────────────────────
+@app.get("/api/sound-map", tags=["Visualisation"], summary="Sampled PCA points for the sound map")
+def sound_map(n: int = Query(6000, ge=500, le=20000)):
+    """
+    Returns sampled 2D PCA points across all 127,900 tracks for background scatterplot
+    rendering, along with explained variance ratio of Component 1 and Component 2.
+    """
+    key = f"sound_map_{n}"
+    if key not in artifacts:
+        s = artifacts["data"].sample(n=n, random_state=42)
+        artifacts[key] = {
+            "points": s[["pca_x", "pca_y", "persona"]].round(3).to_dict(orient="records"),
+            "explained_variance": [round(float(v), 3) for v in artifacts["pca_2d"].explained_variance_ratio_[:2]],
+        }
+    return artifacts[key]

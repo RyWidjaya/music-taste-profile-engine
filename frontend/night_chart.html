@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Taste Profile Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       THE NIGHT CHART — DESIGN SYSTEM TOKENS
+       Engraved astronomical/nautical chart discipline on black basalt ground.
+       Strictly NO panels, cards, or boxes. Structure via scale, space, and hairlines.
+       ========================================================================== */
+    :root {
+      /* Palette: 6 deliberate named values */
+      --ground-basalt:  #08090B;     /* Deep chart void */
+      --ground-recess:  #101216;     /* Dial aperture and canvas ground */
+      --ink-parchment:  #EDEDEE;     /* Primary engraved titles and figures (16.8:1 contrast) */
+      --ink-slate:      #8F949E;     /* Marginalia notations and descriptive prose (6.1:1 contrast) */
+      --accent-celeste: #96CEE8;     /* Listener coordinates and needle target (11.6:1 contrast) */
+      --accent-lichen:  #96D6B6;     /* Secondary comparison benchmark (10.2:1 contrast) */
+
+      /* Structural lines */
+      --rule-hairline:  rgba(255, 255, 255, 0.12);
+      --rule-medium:    rgba(255, 255, 255, 0.22);
+      --rule-bright:    rgba(255, 255, 255, 0.45);
+
+      /* 7 Persona Tones (Uniform Lightness ~0.65, Restrained Chroma ~0.08) */
+      --c-midnight: #A4C4DC; /* Midnight Transit */
+      --c-acoustic: #D2C4A2; /* Looming Acoustic */
+      --c-solar:    #E0B89C; /* Solar Pulse */
+      --c-ambient:  #9DC4B8; /* Sunken Ambient */
+      --c-groove:   #C4A8D0; /* Concrete Groove */
+      --c-chamber:  #B2B8C6; /* Chamber Intimate */
+      --c-drone:    #8E9FA8; /* Dusk Drone */
+
+      --font-chart: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* CSS Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background-color: var(--ground-basalt);
+      color: var(--ink-parchment);
+      font-family: var(--font-chart);
+      font-size: 13px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+    }
+
+    .tnum {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================================================
+       CHART PLATE CONTAINER (1440x900 Single-Plate Target)
+       ========================================================================== */
+    .plate {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 16px 28px 36px;
+      position: relative;
+    }
+
+    /* ==========================================================================
+       TOP BAR: PRODUCT NAME, LENGHTENED SEARCH FIELD, WIDE SEPARATION RULE
+       User Feedback: Search bar lengthened, separation rule widened and prominent.
+       ========================================================================== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding-bottom: 12px;
+    }
+
+    .brand-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--ink-parchment);
+    }
+
+    .brand-credit {
+      font-size: 12px;
+      color: var(--ink-slate);
+    }
+
+    /* Generous, Lengthened Search Bar (User Feedback Addressed) */
+    .search-container {
+      flex: 1;
+      max-width: 580px;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 36px;
+      background: var(--ground-recess);
+      border: 1px solid var(--rule-hairline);
+      border-radius: 2px;
+      padding: 0 16px 0 38px;
+      font-family: var(--font-chart);
+      font-size: 13px;
+      color: var(--ink-parchment);
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-celeste);
+    }
+
+    .search-input::placeholder {
+      color: var(--ink-slate);
+    }
+
+    .search-glyph {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      stroke: var(--ink-slate);
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    .top-status {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--ink-slate);
+      flex-shrink: 0;
+    }
+
+    .status-badge {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--rule-hairline);
+      padding: 3px 10px;
+      border-radius: 2px;
+      color: var(--ink-parchment);
+      font-weight: 500;
+    }
+
+    /* Prominent, Widened Separation Rule with Graduated Ticks (User Feedback Addressed) */
+    .separation-rule-wrap {
+      width: 100%;
+      position: relative;
+      margin: 4px 0 18px;
+    }
+
+    .separation-rule {
+      width: 100%;
+      height: 1px;
+      background: var(--rule-hairline);
+    }
+
+    .rule-ticks {
+      position: absolute;
+      top: -3px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .rule-tick {
+      width: 1px;
+      height: 7px;
+      background: var(--rule-medium);
+    }
+
+    /* ==========================================================================
+       HERO STAGE: MARGINALIA (LEFT) | CENTERED HERO PAIR | MARGINALIA (RIGHT)
+       Centered on vertical centerline of 1440 viewport with equal balanced margins.
+       ========================================================================== */
+    .hero-stage {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 880px) 210px;
+      justify-content: center;
+      gap: 0;
+      align-items: stretch;
+      position: relative;
+    }
+
+    /* CENTERED HERO PAIR: SOUND MAP (~48% of viewport) + DONUT (~24% of viewport) */
+    .hero-pair {
+      display: grid;
+      grid-template-columns: 1.9fr 1fr;
+      gap: 24px;
+      align-items: center;
+      padding: 0 16px;
+    }
+
+    /* Sound Map Figure */
+    .map-plate {
+      position: relative;
+      background: var(--ground-recess);
+      border: 1px solid var(--rule-hairline);
+      aspect-ratio: 16 / 10.5;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .map-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Map Edge Coordinates & Ticks */
+    .map-axes-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .axis-label {
+      position: absolute;
+      font-size: 12px;
+      color: var(--ink-slate);
+      font-variant-numeric: tabular-nums;
+      padding: 6px 10px;
+    }
+    .axis-label.tl { top: 0; left: 0; }
+    .axis-label.tr { top: 0; right: 0; }
+    .axis-label.bl { bottom: 0; left: 0; }
+    .axis-label.br { bottom: 0; right: 0; }
+
+    .crosshair-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      transform: translate(-50%, -50%);
+    }
+    .crosshair-center::before {
+      content: '';
+      position: absolute;
+      top: 5px; left: 0; width: 12px; height: 1px;
+      background: var(--rule-hairline);
+    }
+    .crosshair-center::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 5px; width: 1px; height: 12px;
+      background: var(--rule-hairline);
+    }
+
+    /* Companion Figure: Donut Dial */
+    .donut-plate {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .donut-dial-wrap {
+      width: 220px;
+      height: 220px;
+      position: relative;
+    }
+
+    .donut-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+      display: block;
+    }
+
+    .aperture-core {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .aperture-pct {
+      font-size: 36px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      color: var(--ink-parchment);
+    }
+
+    .aperture-sub {
+      font-size: 12px;
+      color: var(--ink-slate);
+      margin-top: 3px;
+    }
+
+    .donut-caption {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--ink-slate);
+      text-align: center;
+      max-width: 190px;
+      line-height: 1.35;
+    }
+
+    /* ==========================================================================
+       MARGINALIA NOTATIONS WITH PHYSICAL HAIRLINE LEADERS TOUCHING TARGETS
+       "each joined by a hairline leader to the thing it describes on the map or donut"
+       ========================================================================== */
+    .marginalia {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px 0;
+      position: relative;
+    }
+
+    .marginalia.left {
+      padding-right: 12px;
+    }
+
+    .marginalia.right {
+      padding-left: 12px;
+    }
+
+    .marginalia-block {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .m-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .m-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink-slate);
+    }
+
+    .m-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-parchment);
+    }
+
+    .m-body {
+      font-size: 12px;
+      color: var(--ink-slate);
+      line-height: 1.35;
+    }
+
+    /* Authentic SVG hairline leader connecting margin note across gap to touch the map */
+    .leader-to-target-left {
+      position: absolute;
+      right: -16px;
+      top: 10px;
+      width: 16px;
+      height: 1px;
+      background: var(--rule-medium);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .leader-to-target-left::after {
+      content: '';
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--accent-celeste);
+      position: absolute;
+      right: -1px;
+    }
+
+    /* Leader connecting right margin note to touch the donut dial */
+    .leader-to-target-right {
+      position: absolute;
+      left: -16px;
+      top: 10px;
+      width: 16px;
+      height: 1px;
+      background: var(--rule-medium);
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .leader-to-target-right::before {
+      content: '';
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--accent-celeste);
+      position: absolute;
+      left: -1px;
+    }
+
+    /* Population Distribution Histograms (40 Bars, 3:1 Contrast) */
+    .bar-strip {
+      display: flex;
+      align-items: flex-end;
+      gap: 1.5px;
+      height: 32px;
+      width: 100%;
+      padding-top: 2px;
+      border-bottom: 1px solid var(--rule-hairline);
+    }
+
+    .hist-bar {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 0.5px 0.5px 0 0;
+      min-height: 2px;
+    }
+
+    .hist-bar.active-pin {
+      background: var(--accent-celeste);
+      position: relative;
+    }
+    .hist-bar.active-pin::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 3px;
+      background: var(--accent-celeste);
+      border-radius: 50%;
+    }
+
+    .hist-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--ink-slate);
+      margin-top: 2px;
+    }
+
+    /* Breadth Scale Strip */
+    .breadth-track {
+      height: 5px;
+      width: 100%;
+      background: var(--ground-recess);
+      border: 1px solid var(--rule-hairline);
+      position: relative;
+      margin-top: 3px;
+      border-radius: 1px;
+    }
+
+    .breadth-fill {
+      position: absolute;
+      left: 20%;
+      width: 57%;
+      top: 0;
+      bottom: 0;
+      background: var(--accent-celeste);
+      opacity: 0.85;
+    }
+
+    /* Persona Breakdown Dial Key (Right Marginalia) */
+    .persona-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .p-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .p-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .p-pip {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .p-name {
+      color: var(--ink-slate);
+    }
+    .p-name.dominant {
+      color: var(--ink-parchment);
+      font-weight: 500;
+    }
+
+    .p-pct {
+      color: var(--ink-slate);
+    }
+    .p-pct.dominant {
+      color: var(--ink-parchment);
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       TITLE BLOCK (Poster scale dominant persona + calm professional text)
+       User feedback: professional muted font, dominant persona description added.
+       ========================================================================== */
+    .title-plate-block {
+      border-top: 1px solid var(--rule-hairline);
+      padding: 18px 0 20px;
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 36px;
+      align-items: start;
+    }
+
+    .title-col-headline {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .title-col-eyebrow {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-celeste);
+      letter-spacing: 0.04em;
+    }
+
+    /* Poster Scale Persona Name */
+    .poster-title-persona {
+      font-size: 44px;
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: var(--ink-parchment);
+    }
+
+    /* Dominant Persona Description (User Feedback Addressed) */
+    .persona-detailed-desc {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--ink-parchment);
+      margin-top: 4px;
+      font-weight: 400;
+      max-width: 580px;
+    }
+
+    .title-col-editorial {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 14px;
+    }
+
+    /* Muted Professional Tone in IBM Plex Sans (User Feedback Addressed) */
+    .editorial-sentence-clean {
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: var(--ink-slate);
+      font-weight: 400;
+    }
+
+    .editorial-sentence-clean strong {
+      color: var(--ink-parchment);
+      font-weight: 500;
+    }
+
+    .editorial-spatial-coords {
+      font-size: 12px;
+      color: var(--ink-slate);
+      line-height: 1.4;
+    }
+
+    /* ==========================================================================
+       RECOMMENDATIONS (Plain list at foot, neutral audio player slots)
+       ========================================================================== */
+    .recs-plate-block {
+      border-top: 1px solid var(--rule-hairline);
+      padding-top: 18px;
+    }
+
+    .recs-header-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .recs-heading {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-parchment);
+      letter-spacing: -0.01em;
+    }
+
+    .recs-subtext {
+      font-size: 12px;
+      color: var(--ink-slate);
+    }
+
+    .recs-row-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .rec-card-plain {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--rule-hairline);
+    }
+
+    .rec-meta-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .rec-song-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink-parchment);
+    }
+
+    .rec-match-score {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-celeste);
+    }
+
+    .rec-artist-sub {
+      font-size: 12px;
+      color: var(--ink-slate);
+    }
+
+    .rec-reason-copy {
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--ink-slate);
+    }
+
+    /* Neutral audio placeholder (Zero Spotify branding/green) */
+    .audio-player-slot {
+      height: 34px;
+      background: var(--ground-recess);
+      border: 1px solid var(--rule-hairline);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .audio-play-trigger {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid var(--rule-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: var(--ink-parchment);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .audio-play-glyph {
+      width: 7px;
+      height: 7px;
+      fill: currentColor;
+      margin-left: 1px;
+    }
+
+    .audio-waveform-track {
+      flex: 1;
+      height: 1px;
+      background: var(--rule-hairline);
+      position: relative;
+    }
+
+    .audio-waveform-track::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 1px;
+      width: 38%;
+      background: var(--accent-celeste);
+    }
+
+    .audio-preview-tag {
+      font-size: 12px;
+      color: var(--ink-slate);
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       PLACED TRACKS ARCHIVE TABLE (Linked State to Map Point)
+       ========================================================================== */
+    .archive-plate-block {
+      margin-top: 28px;
+      border-top: 1px solid var(--rule-hairline);
+      padding-top: 16px;
+    }
+
+    .archive-table-element {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+
+    .archive-table-element th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--ink-slate);
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--rule-hairline);
+    }
+
+    .archive-table-element td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--ink-slate);
+    }
+
+    .archive-table-element tr.focused-track td {
+      background: rgba(150, 206, 232, 0.06);
+      color: var(--ink-parchment);
+    }
+
+    .archive-table-element tr.focused-track td:first-child {
+      border-left: 2px solid var(--accent-celeste);
+      font-weight: 500;
+    }
+
+    .td-song-name {
+      color: var(--ink-parchment);
+      font-weight: 500;
+    }
+
+    .persona-cell-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .persona-cell-pip {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    /* Plate Footer */
+    .plate-footer-line {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px solid var(--rule-hairline);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--ink-slate);
+    }
+
+    /* ==========================================================================
+       RESPONSIVE ADAPTATION (390x844 Mobile Viewport)
+       ========================================================================== */
+    @media (max-width: 1040px) {
+      .plate {
+        padding: 14px 14px 28px;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .search-container {
+        max-width: 100%;
+        width: 100%;
+      }
+
+      .hero-stage {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .hero-pair {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 0;
+      }
+
+      .map-plate {
+        aspect-ratio: 16 / 11;
+        min-height: 260px;
+      }
+
+      .donut-plate {
+        padding: 12px 0;
+      }
+
+      .marginalia.left,
+      .marginalia.right {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        padding: 0;
+      }
+
+      .leader-to-target-left,
+      .leader-to-target-right {
+        display: none;
+      }
+
+      .title-plate-block {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .poster-title-persona {
+        font-size: 32px;
+      }
+
+      .recs-row-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="plate">
+
+    <!-- TOP BAR -->
+    <header class="top-bar">
+      <div class="brand-meta">
+        <h1 class="brand-title">Music Taste Profile Engine</h1>
+        <p class="brand-credit">Built on Spotify track data — 127,900 songs mapped across 7 sound personas</p>
+      </div>
+
+      <!-- Lengthened Search Bar (User Feedback Addressed) -->
+      <div class="search-container">
+        <svg class="search-glyph" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" class="search-input" placeholder="Search tracks to map your taste..." value="The Weeknd — Starboy">
+      </div>
+
+      <div class="top-status">
+        <span class="status-badge tnum">12 Tracks Placed</span>
+        <span class="tnum">Map Sheet 04-A</span>
+      </div>
+    </header>
+
+    <!-- Prominent Widened Separation Rule (User Feedback Addressed) -->
+    <div class="separation-rule-wrap">
+      <div class="separation-rule"></div>
+      <div class="rule-ticks">
+        <div class="rule-tick"></div>
+        <div class="rule-tick"></div>
+        <div class="rule-tick"></div>
+        <div class="rule-tick"></div>
+        <div class="rule-tick"></div>
+        <div class="rule-tick"></div>
+      </div>
+    </div>
+
+    <!-- MAIN HERO STAGE: MARGINALIA (LEFT) | CENTERED HERO PAIR | MARGINALIA (RIGHT) -->
+    <section class="hero-stage">
+
+      <!-- LEFT MARGINALIA (Histograms & Breadth) -->
+      <aside class="marginalia left">
+
+        <!-- Energy Drive Histogram with Physical Hairline Leader -->
+        <div class="marginalia-block">
+          <div class="m-header">
+            <span class="m-title">Energy drive</span>
+            <span class="m-value tnum">74th pct</span>
+          </div>
+          <div class="bar-strip" id="energyHisto">
+            <!-- 40 populated bars -->
+          </div>
+          <div class="hist-ticks">
+            <span>0.0 Calm</span>
+            <span class="tnum" style="color: var(--accent-celeste)">0.74 User</span>
+            <span>1.0 Kinetic</span>
+          </div>
+          <p class="m-body">Drive is higher than 74% of Spotify listeners.</p>
+          <div class="leader-to-target-left"></div>
+        </div>
+
+        <!-- Acoustic Balance Histogram with Physical Hairline Leader -->
+        <div class="marginalia-block">
+          <div class="m-header">
+            <span class="m-title">Acoustic balance</span>
+            <span class="m-value tnum">28th pct</span>
+          </div>
+          <div class="bar-strip" id="acousticHisto">
+            <!-- 40 populated bars -->
+          </div>
+          <div class="hist-ticks">
+            <span>0.0 Synthetic</span>
+            <span class="tnum" style="color: var(--accent-celeste)">0.28 User</span>
+            <span>1.0 Organic</span>
+          </div>
+          <p class="m-body">Organic resonance is lower than 72% of listeners.</p>
+          <div class="leader-to-target-left"></div>
+        </div>
+
+        <!-- Taste Breadth Meter -->
+        <div class="marginalia-block">
+          <div class="m-header">
+            <span class="m-title">Taste breadth</span>
+            <span class="m-value tnum">4 of 7</span>
+          </div>
+          <div class="breadth-track">
+            <div class="breadth-fill"></div>
+          </div>
+          <p class="m-body">Tracks span 4 distinct acoustic sound regions.</p>
+        </div>
+
+      </aside>
+
+      <!-- CENTERED HERO PAIR: SOUND MAP (~48%) + PERSONA DONUT (~24%) -->
+      <div class="hero-pair">
+
+        <!-- FIGURE 1: 25,000 TRACK SOUND MAP -->
+        <div class="map-plate">
+          <canvas id="soundMapCanvas" class="map-canvas" width="580" height="370"></canvas>
+          
+          <div class="map-axes-layer">
+            <span class="axis-label tl tnum">+1.0 Acoustic</span>
+            <span class="axis-label tr tnum">+1.0 Energy</span>
+            <span class="axis-label bl tnum">-1.0 Kinetic</span>
+            <span class="axis-label br tnum">127,900 Tracks Plotted</span>
+            <div class="crosshair-center"></div>
+          </div>
+        </div>
+
+        <!-- FIGURE 2: PERSONA DONUT DIAL -->
+        <div class="donut-plate">
+          <div class="donut-dial-wrap">
+            <svg class="donut-svg" viewBox="0 0 220 220">
+              <!-- Outer calibration rim -->
+              <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+              
+              <!-- 7 Donut Segments with 1.5px gaps (Circumference = 2 * PI * 74 = 464.95) -->
+              <!-- 1. Midnight Transit: 42% (195.3px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-midnight)" stroke-width="22"
+                      stroke-dasharray="193.3 271.65" stroke-dashoffset="0" />
+              <!-- 2. Looming Acoustic: 18% (83.7px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-acoustic)" stroke-width="22"
+                      stroke-dasharray="81.7 383.25" stroke-dashoffset="-195.3" />
+              <!-- 3. Solar Pulse: 14% (65.1px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-solar)" stroke-width="22"
+                      stroke-dasharray="63.1 401.85" stroke-dashoffset="-279.0" />
+              <!-- 4. Sunken Ambient: 10% (46.5px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-ambient)" stroke-width="22"
+                      stroke-dasharray="44.5 420.45" stroke-dashoffset="-344.1" />
+              <!-- 5. Concrete Groove: 7% (32.5px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-groove)" stroke-width="22"
+                      stroke-dasharray="30.5 434.45" stroke-dashoffset="-390.6" />
+              <!-- 6. Chamber Intimate: 5% (23.2px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-chamber)" stroke-width="22"
+                      stroke-dasharray="21.2 443.75" stroke-dashoffset="-423.1" />
+              <!-- 7. Dusk Drone: 4% (18.6px) -->
+              <circle cx="110" cy="110" r="74" fill="none" stroke="var(--c-drone)" stroke-width="22"
+                      stroke-dasharray="16.6 448.35" stroke-dashoffset="-446.3" />
+              
+              <!-- Inner aperture boundary -->
+              <circle cx="110" cy="110" r="63" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+            </svg>
+
+            <!-- Center Aperture Readings -->
+            <div class="aperture-core">
+              <span class="aperture-pct tnum">42%</span>
+              <span class="aperture-sub">Dominant share</span>
+            </div>
+          </div>
+
+          <p class="donut-caption">Seven sound persona segments calibrated to your placed library.</p>
+        </div>
+
+      </div>
+
+      <!-- RIGHT MARGINALIA (Persona Breakdown Dial Key) -->
+      <aside class="marginalia right">
+
+        <div class="marginalia-block">
+          <div class="m-header">
+            <span class="m-title">Sound personas</span>
+            <span class="m-value tnum">7 total</span>
+          </div>
+
+          <div class="persona-list">
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-midnight)"></div>
+                <span class="p-name dominant">Midnight Transit</span>
+              </div>
+              <span class="p-pct dominant tnum">42%</span>
+            </div>
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-acoustic)"></div>
+                <span class="p-name">Looming Acoustic</span>
+              </div>
+              <span class="p-pct tnum">18%</span>
+            </div>
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-solar)"></div>
+                <span class="p-name">Solar Pulse</span>
+              </div>
+              <span class="p-pct tnum">14%</span>
+            </div>
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-ambient)"></div>
+                <span class="p-name">Sunken Ambient</span>
+              </div>
+              <span class="p-pct tnum">10%</span>
+            </div>
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-groove)"></div>
+                <span class="p-name">Concrete Groove</span>
+              </div>
+              <span class="p-pct tnum">7%</span>
+            </div>
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-chamber)"></div>
+                <span class="p-name">Chamber Intimate</span>
+              </div>
+              <span class="p-pct tnum">5%</span>
+            </div>
+            <div class="p-item">
+              <div class="p-left">
+                <div class="p-pip" style="background: var(--c-drone)"></div>
+                <span class="p-name">Dusk Drone</span>
+              </div>
+              <span class="p-pct tnum">4%</span>
+            </div>
+          </div>
+
+          <div class="leader-to-target-right"></div>
+          <p class="m-body" style="margin-top: 4px;">Descending share of listening time spent across sonic clusters.</p>
+        </div>
+
+      </aside>
+
+    </section>
+
+    <!-- TITLE BLOCK (Poster scale dominant persona + calm professional text) -->
+    <!-- User feedback: professional muted font, dominant persona description added -->
+    <section class="title-plate-block">
+      <div class="title-col-headline">
+        <span class="title-col-eyebrow">Dominant Persona</span>
+        <h2 class="poster-title-persona">Midnight Transit</h2>
+        <!-- Short description of dominant persona (User Feedback Addressed) -->
+        <p class="persona-detailed-desc">
+          Late-night kinetic pulse driven by clean synthetic low-end, nocturnal driving tempos, and forward vocal cadence.
+        </p>
+      </div>
+
+      <div class="title-col-editorial">
+        <!-- Professional muted font in IBM Plex Sans (User Feedback Addressed) -->
+        <p class="editorial-sentence-clean">
+          You listen like a late-night driver, mostly <strong>Midnight Transit</strong>, with a quiet pull toward acoustic songwriting and textural ambient drift.
+        </p>
+        <p class="editorial-spatial-coords">
+          Acoustic coordinates: +0.68 Energy, -0.42 Acousticness. Mapped with 12 reference tracks against 127,900 benchmark records.
+        </p>
+      </div>
+    </section>
+
+    <!-- RECOMMENDATIONS LIST (Plain list at foot, neutral audio player slots) -->
+    <section class="recs-plate-block">
+      <div class="recs-header-row">
+        <h3 class="recs-heading">Recommended Unheard Tracks</h3>
+        <span class="recs-subtext">Selected from unexplored sound territories</span>
+      </div>
+
+      <div class="recs-row-grid">
+        <!-- Rec 1 -->
+        <div class="rec-card-plain">
+          <div class="rec-meta-top">
+            <span class="rec-song-title">Sublunary</span>
+            <span class="rec-match-score tnum">94% match</span>
+          </div>
+          <span class="rec-artist-sub">Floating Points</span>
+          <p class="rec-reason-copy">Bridges your dominant electronic rhythm with modular acoustic textures.</p>
+          <div class="audio-player-slot">
+            <button class="audio-play-trigger" aria-label="Play preview">
+              <svg class="audio-play-glyph" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+            <div class="audio-waveform-track"></div>
+            <span class="audio-preview-tag tnum">0:30 preview</span>
+          </div>
+        </div>
+
+        <!-- Rec 2 -->
+        <div class="rec-card-plain">
+          <div class="rec-meta-top">
+            <span class="rec-song-title">Night Drive</span>
+            <span class="rec-match-score tnum">91% match</span>
+          </div>
+          <span class="rec-artist-sub">Chromatics</span>
+          <p class="rec-reason-copy">Reinforces clean synth arpeggios with nocturnal driving tempos.</p>
+          <div class="audio-player-slot">
+            <button class="audio-play-trigger" aria-label="Play preview">
+              <svg class="audio-play-glyph" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+            <div class="audio-waveform-track"></div>
+            <span class="audio-preview-tag tnum">0:30 preview</span>
+          </div>
+        </div>
+
+        <!-- Rec 3 -->
+        <div class="rec-card-plain">
+          <div class="rec-meta-top">
+            <span class="rec-song-title">Motion Picture Soundtrack</span>
+            <span class="rec-match-score tnum">88% match</span>
+          </div>
+          <span class="rec-artist-sub">Radiohead</span>
+          <p class="rec-reason-copy">Balances your electronic core with atmospheric pump organ harmonics.</p>
+          <div class="audio-player-slot">
+            <button class="audio-play-trigger" aria-label="Play preview">
+              <svg class="audio-play-glyph" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+            <div class="audio-waveform-track"></div>
+            <span class="audio-preview-tag tnum">0:30 preview</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLACED TRACKS ARCHIVE TABLE (Linked State to Map Point) -->
+    <section class="archive-plate-block">
+      <div class="recs-header-row">
+        <h3 class="recs-heading">Placed Tracks Archive</h3>
+        <span class="recs-subtext">12 of 12 tracks mapped onto the coordinate plane</span>
+      </div>
+
+      <table class="archive-table-element">
+        <thead>
+          <tr>
+            <th>Track</th>
+            <th>Artist</th>
+            <th>Sound Persona</th>
+            <th class="tnum">Energy</th>
+            <th class="tnum">Acoustic</th>
+            <th class="tnum">Map Coordinate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="focused-track">
+            <td class="td-song-name">Starboy</td>
+            <td>The Weeknd, Daft Punk</td>
+            <td>
+              <span class="persona-cell-tag">
+                <span class="persona-cell-pip" style="background: var(--c-midnight)"></span>
+                Midnight Transit
+              </span>
+            </td>
+            <td class="tnum">0.82</td>
+            <td class="tnum">0.14</td>
+            <td class="tnum" style="color: var(--accent-celeste)">[+0.72, -0.38] Active Ring</td>
+          </tr>
+          <tr>
+            <td class="td-song-name">Blinding Lights</td>
+            <td>The Weeknd</td>
+            <td>
+              <span class="persona-cell-tag">
+                <span class="persona-cell-pip" style="background: var(--c-midnight)"></span>
+                Midnight Transit
+              </span>
+            </td>
+            <td class="tnum">0.73</td>
+            <td class="tnum">0.00</td>
+            <td class="tnum">[+0.65, -0.45]</td>
+          </tr>
+          <tr>
+            <td class="td-song-name">Nightcall</td>
+            <td>Kavinsky</td>
+            <td>
+              <span class="persona-cell-tag">
+                <span class="persona-cell-pip" style="background: var(--c-midnight)"></span>
+                Midnight Transit
+              </span>
+            </td>
+            <td class="tnum">0.85</td>
+            <td class="tnum">0.05</td>
+            <td class="tnum">[+0.78, -0.41]</td>
+          </tr>
+          <tr>
+            <td class="td-song-name">Pink + White</td>
+            <td>Frank Ocean</td>
+            <td>
+              <span class="persona-cell-tag">
+                <span class="persona-cell-pip" style="background: var(--c-acoustic)"></span>
+                Looming Acoustic
+              </span>
+            </td>
+            <td class="tnum">0.55</td>
+            <td class="tnum">0.67</td>
+            <td class="tnum">[-0.24, +0.62]</td>
+          </tr>
+          <tr>
+            <td class="td-song-name">Slow Burn</td>
+            <td>Kacey Musgraves</td>
+            <td>
+              <span class="persona-cell-tag">
+                <span class="persona-cell-pip" style="background: var(--c-acoustic)"></span>
+                Looming Acoustic
+              </span>
+            </td>
+            <td class="tnum">0.42</td>
+            <td class="tnum">0.79</td>
+            <td class="tnum">[-0.41, +0.75]</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- FOOTER CREDITS -->
+    <footer class="plate-footer-line">
+      <span>Cartographic Plate No. 07 — Audio Spatial Distribution</span>
+      <span>Built on Spotify track data • 127,900 songs modeled with K-Means</span>
+      <span class="tnum">1440 × 900 Viewport Standard</span>
+    </footer>
+
+  </main>
+
+  <!-- JAVASCRIPT: 25,000 AUDIO MANIFOLD POINTS + 40-BAR HISTOGRAMS -->
+  <script>
+    (function initNightChart() {
+      // 1. Populate Histograms (40 Bars with authentic population distribution)
+      function renderHisto(elementId, userPct, meanIdx) {
+        const container = document.getElementById(elementId);
+        if (!container) return;
+        const totalBars = 40;
+        const targetBar = Math.round(userPct * (totalBars - 1));
+
+        for (let i = 0; i < totalBars; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'hist-bar';
+          
+          // Gaussian bell curve distribution
+          const distFromMean = Math.abs(i - meanIdx);
+          const heightPct = Math.max(10, Math.exp(-Math.pow(distFromMean, 2) / 60) * 100);
+          bar.style.height = heightPct + '%';
+
+          if (i === targetBar) {
+            bar.classList.add('active-pin');
+          }
+          container.appendChild(bar);
+        }
+      }
+
+      renderHisto('energyHisto', 0.74, 20);    // Energy mean at index 20
+      renderHisto('acousticHisto', 0.28, 14);  // Acousticness mean at index 14
+
+      // 2. Render 25,000 Points Continuous Audio Manifold on Canvas
+      const canvas = document.getElementById('soundMapCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Realistic audio cluster hubs with covariance
+      const clusters = [
+        { x: w * 0.68, y: h * 0.38, sx: 46, sy: 36, col: '164, 196, 220', name: 'Midnight Transit' },
+        { x: w * 0.30, y: h * 0.68, sx: 40, sy: 42, col: '210, 196, 162', name: 'Looming Acoustic' },
+        { x: w * 0.72, y: h * 0.72, sx: 38, sy: 34, col: '224, 184, 156', name: 'Solar Pulse' },
+        { x: w * 0.32, y: h * 0.32, sx: 42, sy: 38, col: '157, 196, 184', name: 'Sunken Ambient' },
+        { x: w * 0.52, y: h * 0.54, sx: 48, sy: 40, col: '196, 168, 208', name: 'Concrete Groove' },
+        { x: w * 0.22, y: h * 0.52, sx: 36, sy: 36, col: '178, 184, 198', name: 'Chamber Intimate' },
+        { x: w * 0.44, y: h * 0.22, sx: 34, sy: 28, col: '142, 159, 168', name: 'Dusk Drone' }
+      ];
+
+      // Draw continuous background audio points (25,000 points)
+      const particleCount = 25000;
+      for (let i = 0; i < particleCount; i++) {
+        const cIdx = Math.floor(Math.random() * clusters.length);
+        const c = clusters[cIdx];
+
+        const u1 = Math.random() || 0.001;
+        const u2 = Math.random() || 0.001;
+        const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+        const z1 = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
+
+        const px = c.x + z0 * c.sx;
+        const py = c.y + z1 * c.sy;
+
+        if (px >= 0 && px < w && py >= 0 && py < h) {
+          ctx.fillStyle = `rgba(${c.col}, 0.16)`;
+          ctx.fillRect(px, py, 1.2, 1.2);
+        }
+      }
+
+      // Territory labels directly on canvas
+      ctx.font = '12px "IBM Plex Sans", sans-serif';
+      ctx.textAlign = 'center';
+      clusters.forEach(c => {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.fillText(c.name, c.x, c.y - c.sy - 8);
+      });
+
+      // User's 12 songs (Brightest marks on the plate)
+      const userTracks = [
+        { title: 'Starboy', x: w * 0.69, y: h * 0.36, active: true },
+        { title: 'Blinding Lights', x: w * 0.67, y: h * 0.40, active: false },
+        { title: 'Nightcall', x: w * 0.72, y: h * 0.34, active: false },
+        { title: 'Midnight City', x: w * 0.64, y: h * 0.42, active: false },
+        { title: 'Less I Know', x: w * 0.58, y: h * 0.50, active: false },
+        { title: 'Breathe', x: w * 0.51, y: h * 0.53, active: false },
+        { title: 'Pink + White', x: w * 0.32, y: h * 0.65, active: false },
+        { title: 'Slow Burn', x: w * 0.28, y: h * 0.70, active: false },
+        { title: 'Motion Picture', x: w * 0.33, y: h * 0.34, active: false },
+        { title: 'Sublunary', x: w * 0.36, y: h * 0.30, active: false },
+        { title: 'Heroes', x: w * 0.70, y: h * 0.70, active: false },
+        { title: 'A Forest', x: w * 0.42, y: h * 0.24, active: false }
+      ];
+
+      // Subtle contour hull around user's listening centroid
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(150, 206, 232, 0.28)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.arc(w * 0.55, h * 0.45, 90, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw individual user marks
+      userTracks.forEach(t => {
+        if (t.active) {
+          // Focused track (Starboy): Double target ring + bright white core
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 8, 0, Math.PI * 2);
+          ctx.strokeStyle = '#96CEE8';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 14, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(150, 206, 232, 0.35)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+
+          // Active label
+          ctx.font = '500 12px "IBM Plex Sans", sans-serif';
+          ctx.fillStyle = '#EDEDEE';
+          ctx.textAlign = 'left';
+          ctx.fillText('Starboy (Active)', t.x + 18, t.y + 4);
+        } else {
+          // Other placed songs
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#96CEE8';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+        }
+      });
+
+    })();
+  </script>
+
+</body>
+</html>

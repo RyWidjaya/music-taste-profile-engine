@@ -1,0 +1,2119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Taste Profile Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       1. DESIGN TOKENS (Strict CSS Variables)
+       ========================================================================== */
+    :root {
+      --bg-base: #18242C;
+      --bg-sidebar: #131D24;
+      --surface: #1F2D38;
+      --surface-raised: #263140;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-strong: rgba(255, 255, 255, 0.12);
+
+      --text-1: #E8EEF3;
+      --text-2: #9AA7B3;
+      --text-3: #66737F;
+
+      --accent: #7CC4F5;
+      --accent-hover: #96D1F8;
+      --accent-subtle: rgba(124, 196, 245, 0.12);
+      --on-accent: #0E1A22;
+
+      --danger: #F08A8A;
+      --danger-subtle: rgba(240, 138, 138, 0.12);
+
+      /* Persona Colors (Persona Metadata 0-6) */
+      --persona-0: #E58E7A; /* Raw Energy & High-Octane Rock */
+      --persona-1: #E6C07B; /* Rhythmic Flow & Hip-Hop Beats */
+      --persona-2: #7CC4F5; /* Upbeat Dance & Sunny Pop */
+      --persona-3: #9A8CF0; /* Alternative Edge & Dark Grunge */
+      --persona-4: #5FD0C4; /* Hypnotic Beats & Electronic Club */
+      --persona-5: #E88FB0; /* Chill Acoustic & Moody Ballads */
+      --persona-6: #8A98A8; /* Deep Ambient & Atmospheric Chill */
+
+      --radius-panel: 12px;
+      --radius-control: 8px;
+      --radius-dot: 999px;
+
+      --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-1);
+      font-family: var(--font-family);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Focus accessibility */
+    button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ==========================================================================
+       2. APP SHELL LAYOUT
+       ========================================================================== */
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 22px;
+      height: 22px;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-1);
+    }
+
+    /* Autocomplete search */
+    .search-container {
+      position: relative;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      width: 16px;
+      height: 16px;
+      color: var(--text-3);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 38px;
+      padding: 8px 12px 8px 36px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-control);
+      color: var(--text-1);
+      font-family: inherit;
+      font-size: 13px;
+      transition: border-color 150ms ease-out;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-3);
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      background-color: var(--surface-raised);
+    }
+
+    .search-dropdown {
+      position: absolute;
+      top: 44px;
+      left: 0;
+      right: 0;
+      background-color: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-control);
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 50;
+      display: none;
+    }
+
+    .search-dropdown.open {
+      display: block;
+    }
+
+    .search-result-item {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background-color 150ms ease-out;
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-item:hover, .search-result-item.selected {
+      background-color: var(--surface);
+    }
+
+    .search-result-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-result-meta {
+      font-size: 11px;
+      color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-empty {
+      padding: 14px 12px;
+      font-size: 12px;
+      color: var(--text-3);
+      text-align: center;
+    }
+
+    /* Selected tracks list */
+    .tracks-section {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      gap: 12px;
+    }
+
+    .section-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+
+    .track-count-badge {
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .selected-tracks-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 2px;
+    }
+
+    .empty-tracks-placeholder {
+      font-size: 12px;
+      color: var(--text-3);
+      padding: 24px 8px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .selected-track-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-control);
+      font-size: 12px;
+      position: relative;
+      transition: background-color 150ms ease-out;
+    }
+
+    .selected-track-item:hover {
+      background-color: var(--surface-raised);
+    }
+
+    .track-persona-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: var(--radius-dot);
+      flex-shrink: 0;
+    }
+
+    .selected-track-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .selected-track-name {
+      font-weight: 500;
+      color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .selected-track-artist {
+      font-size: 11px;
+      color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .remove-track-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.6;
+      transition: opacity 150ms ease-out, color 150ms ease-out;
+    }
+
+    .selected-track-item:hover .remove-track-btn {
+      opacity: 1;
+    }
+
+    .remove-track-btn:hover {
+      color: var(--danger);
+    }
+
+    /* Sidebar actions */
+    .sidebar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .primary-btn {
+      width: 100%;
+      height: 40px;
+      background-color: var(--accent);
+      color: var(--on-accent);
+      border: none;
+      border-radius: var(--radius-control);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 150ms ease-out;
+    }
+
+    .primary-btn:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .text-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-3);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 6px;
+      text-align: center;
+      transition: color 150ms ease-out;
+    }
+
+    .text-btn:hover:not(:disabled) {
+      color: var(--text-2);
+    }
+
+    .text-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ==========================================================================
+       3. MAIN CONTENT AREA
+       ========================================================================== */
+    .main-content {
+      flex: 1;
+      max-width: 1240px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Page Header */
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-1);
+      letter-spacing: -0.01em;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    /* Inline Alert / Error Notice */
+    .status-banner {
+      display: none;
+      padding: 12px 16px;
+      border-radius: var(--radius-control);
+      font-size: 13px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-banner.error {
+      display: flex;
+      background-color: var(--danger-subtle);
+      border: 1px solid var(--danger);
+      color: var(--text-1);
+    }
+
+    .banner-retry-btn {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--text-1);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .banner-retry-btn:hover {
+      background-color: rgba(240, 138, 138, 0.2);
+    }
+
+    /* Panels General */
+    .panel {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-panel);
+      padding: 20px 24px;
+      position: relative;
+    }
+
+    .panel-header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    .panel-caption {
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    /* ─── SUMMARY ROW ─── */
+    .summary-panel {
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .summary-cell {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .summary-cell:not(:last-child) {
+      border-right: 1px solid var(--border);
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-tooltip-trigger {
+      cursor: help;
+      display: inline-flex;
+      align-items: center;
+      color: var(--text-3);
+      position: relative;
+    }
+
+    .info-tooltip-trigger:hover {
+      color: var(--text-2);
+    }
+
+    .tooltip-box {
+      visibility: hidden;
+      opacity: 0;
+      width: 200px;
+      background-color: var(--surface-raised);
+      color: var(--text-2);
+      font-size: 11px;
+      text-align: left;
+      border-radius: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-strong);
+      position: absolute;
+      z-index: 20;
+      bottom: 130%;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: opacity 150ms ease-out;
+      pointer-events: none;
+      line-height: 1.4;
+    }
+
+    .info-tooltip-trigger:hover .tooltip-box {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .summary-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .summary-value-lg {
+      font-size: 32px;
+      font-weight: 600;
+      line-height: 1.1;
+      color: var(--text-1);
+    }
+
+    .summary-persona-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 35px;
+    }
+
+    .summary-subtext {
+      font-size: 12px;
+      color: var(--text-2);
+    }
+
+    .summary-low-sample {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-left: 6px;
+    }
+
+    /* ─── CENTRE ROW ─── */
+    .centre-row {
+      display: grid;
+      grid-template-columns: 62% calc(38% - 16px);
+      gap: 16px;
+      min-height: 440px;
+    }
+
+    /* Left Panel: Scatter Plot */
+    .scatter-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .canvas-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 320px;
+    }
+
+    #sound-map-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .canvas-tooltip {
+      position: absolute;
+      background-color: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-1);
+      pointer-events: none;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      max-width: 220px;
+    }
+
+    .canvas-tooltip .tt-name {
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: 2px;
+    }
+
+    .canvas-tooltip .tt-artist {
+      color: var(--text-2);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .canvas-tooltip .tt-persona {
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .scatter-footer-axes {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-3);
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+
+    /* Right Panel: Donut Chart */
+    .donut-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .donut-chart-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      padding: 10px 0;
+    }
+
+    .donut-svg {
+      width: 190px;
+      height: 190px;
+      transform: rotate(-90deg);
+    }
+
+    .donut-center-group {
+      pointer-events: none;
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 120px;
+    }
+
+    .donut-center-pct {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text-1);
+      line-height: 1;
+    }
+
+    .donut-center-name {
+      font-size: 11px;
+      color: var(--text-2);
+      margin-top: 4px;
+      line-height: 1.2;
+      max-width: 110px;
+      text-align: center;
+    }
+
+    .donut-segment {
+      cursor: pointer;
+      transition: stroke-width 150ms ease-out, opacity 150ms ease-out;
+    }
+
+    .donut-segment:hover {
+      stroke-width: 24;
+    }
+
+    .donut-legend {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+      overflow-y: auto;
+      max-height: 180px;
+      padding-right: 4px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 150ms ease-out;
+    }
+
+    .legend-item:hover, .legend-item.active {
+      background-color: var(--surface-raised);
+    }
+
+    .legend-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .legend-name {
+      color: var(--text-2);
+      white-space: normal;
+      line-height: 1.3;
+    }
+
+    .legend-pct {
+      color: var(--text-1);
+      font-weight: 500;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ─── BOTTOM ROW ─── */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* How you compare */
+    .traits-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .trait-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 50px;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .trait-label {
+      font-size: 13px;
+      color: var(--text-2);
+      text-transform: capitalize;
+    }
+
+    .trait-track {
+      height: 6px;
+      background-color: var(--surface-raised);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .trait-fill {
+      height: 100%;
+      background-color: var(--accent);
+      border-radius: 3px;
+      transition: width 300ms ease-out;
+    }
+
+    .trait-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+      text-align: right;
+    }
+
+    /* Recommended tracks */
+    .recommendations-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rec-item {
+      padding: 10px 12px;
+      background-color: var(--surface-raised);
+      border-radius: var(--radius-control);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .rec-track-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rec-track-meta {
+      font-size: 11px;
+      color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ─── FOOTER ─── */
+    .site-footer {
+      margin-top: 12px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.6;
+    }
+
+    /* ─── SKELETON / LOADING STATES ─── */
+    .skeleton {
+      background-color: var(--surface-raised);
+      border-radius: 4px;
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 0.3; }
+      100% { opacity: 0.6; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton {
+        animation: none;
+        opacity: 0.5;
+      }
+      .donut-segment, .trait-fill {
+        transition: none !important;
+      }
+    }
+
+    /* Initial state prompt overlay */
+    .initial-map-overlay {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-control);
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--text-2);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Responsive Stacking below 1100px */
+    @media (max-width: 1100px) {
+      .app-shell {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .main-content {
+        padding: 20px;
+      }
+      .centre-row {
+        grid-template-columns: 1fr;
+      }
+      .bottom-row {
+        grid-template-columns: 1fr;
+      }
+      .summary-panel {
+        grid-template-columns: 1fr;
+      }
+      .summary-cell:not(:last-child) {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- ====================================================================
+         SIDEBAR: Search, Selected Tracks, Analyze Action
+         ==================================================================== -->
+    <aside class="sidebar" aria-label="Sidebar navigation and track selection">
+      <header class="brand-header">
+        <svg class="brand-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M8 12a4 4 0 0 1 8 0"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+        </svg>
+        <h1 class="brand-title">Music Taste Profile Engine</h1>
+      </header>
+
+      <!-- Autocomplete Song Search -->
+      <section class="search-container" aria-label="Search tracks">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="7"/>
+            <line x1="16" y1="16" x2="21" y2="21"/>
+          </svg>
+          <input
+            id="track-search-input"
+            class="search-input"
+            type="text"
+            placeholder="Search tracks or artists…"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="search-results-dropdown"
+          />
+        </div>
+        <div id="search-results-dropdown" class="search-dropdown" role="listbox"></div>
+      </section>
+
+      <!-- Selected tracks list -->
+      <section class="tracks-section" aria-label="Selected tracks list">
+        <div class="section-label-row">
+          <span class="section-label">Your tracks</span>
+          <span id="track-count-badge" class="track-count-badge tabular-nums">0 / 20</span>
+        </div>
+
+        <ul id="selected-tracks-list" class="selected-tracks-list">
+          <!-- Populated by JS -->
+          <li class="empty-tracks-placeholder">
+            Add 1 to 20 tracks to analyze your sound distribution.
+          </li>
+        </ul>
+      </section>
+
+      <!-- Actions -->
+      <div class="sidebar-actions">
+        <button id="analyze-btn" class="primary-btn" disabled>
+          Analyze taste
+        </button>
+        <button id="clear-all-btn" class="text-btn" disabled>
+          Clear all tracks
+        </button>
+      </div>
+    </aside>
+
+    <!-- ====================================================================
+         MAIN CONTENT: Diagnostics, Visualizations & Recommendations
+         ==================================================================== -->
+    <main class="main-content" id="main-area" aria-live="polite">
+      <!-- Page Header -->
+      <header class="page-header">
+        <h2 class="page-title">Your sound</h2>
+        <p class="page-subtitle">k-means clustering of 127,900 Spotify tracks into 7 sound personas</p>
+      </header>
+
+      <!-- Inline Notification Banner -->
+      <div id="status-banner" class="status-banner" role="alert">
+        <span id="status-banner-text">Error loading analysis.</span>
+        <button id="banner-retry-btn" class="banner-retry-btn">Retry</button>
+      </div>
+
+      <!-- Summary KPI Row (Single Panel, 1px Dividers) -->
+      <section class="panel summary-panel" aria-label="Taste overview metrics">
+        <div class="summary-cell">
+          <span class="summary-label">Top persona</span>
+          <div id="top-persona-container" class="summary-persona-title">
+            <span style="color: var(--text-3); font-weight: 400; font-size: 14px;">—</span>
+          </div>
+          <span id="top-persona-subtext" class="summary-subtext">—</span>
+        </div>
+
+        <div class="summary-cell">
+          <span class="summary-label">
+            Diversity score
+            <span class="info-tooltip-trigger" tabindex="0" aria-label="Diversity score explanation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="9"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span class="tooltip-box">Normalised Shannon entropy of your persona split. (0.00 = focused, 1.00 = eclectic).</span>
+            </span>
+          </span>
+          <div class="summary-value-row">
+            <span id="diversity-score-val" class="summary-value-lg tabular-nums">—</span>
+            <span id="diversity-score-label" class="summary-subtext">—</span>
+            <span id="low-sample-warning" class="summary-low-sample" style="display: none;">(Low sample size)</span>
+          </div>
+          <span class="summary-subtext">Shannon entropy</span>
+        </div>
+
+        <div class="summary-cell">
+          <span class="summary-label">Tracks matched</span>
+          <div class="summary-value-row">
+            <span id="tracks-matched-val" class="summary-value-lg tabular-nums">—</span>
+          </div>
+          <span class="summary-subtext">Found in 127,900 modeled corpus</span>
+        </div>
+      </section>
+
+      <!-- Centre Visualisation Row: Sound Map + Persona Breakdown -->
+      <section class="centre-row" aria-label="Visualizations">
+        <!-- Sound Map Scatter Plot -->
+        <div class="panel scatter-panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Sound map</h3>
+            <p class="panel-caption">2D PCA projection of audio features · User tracks highlighted</p>
+          </div>
+
+          <div class="canvas-container" id="canvas-container">
+            <canvas id="sound-map-canvas"></canvas>
+            <div id="canvas-tooltip" class="canvas-tooltip"></div>
+            <div id="initial-map-overlay" class="initial-map-overlay">
+              Add 5–20 songs to see your breakdown.
+            </div>
+          </div>
+
+          <div class="scatter-footer-axes">
+            <span id="axis-component-1">Component 1 (34%)</span>
+            <span id="axis-component-2">Component 2 (17%)</span>
+          </div>
+        </div>
+
+        <!-- Persona Breakdown Donut Chart -->
+        <div class="panel donut-panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Persona breakdown</h3>
+            <p class="panel-caption">Distribution across the 7 sound clusters</p>
+          </div>
+
+          <div class="donut-chart-container">
+            <svg class="donut-svg" id="donut-svg" viewBox="0 0 240 240" aria-label="Persona breakdown donut chart">
+              <!-- Rendered via JS -->
+            </svg>
+            <div class="donut-center-group" id="donut-center-group">
+              <span id="donut-center-pct" class="donut-center-pct tabular-nums">—</span>
+              <span id="donut-center-name" class="donut-center-name">No data</span>
+            </div>
+          </div>
+
+          <ul id="donut-legend" class="donut-legend" aria-label="Persona legend">
+            <!-- Rendered via JS -->
+          </ul>
+        </div>
+      </section>
+
+      <!-- Bottom Row: Audio Traits Comparison + Recommended Tracks -->
+      <section class="bottom-row" aria-label="Detailed diagnostics">
+        <!-- Audio traits percentiles -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">How you compare</h3>
+            <p class="panel-caption">Your average vs. all tracks in the dataset</p>
+          </div>
+
+          <div class="traits-list" id="traits-list">
+            <div class="trait-row">
+              <span class="trait-label">Danceability</span>
+              <div class="trait-track"><div id="trait-danceability" class="trait-fill" style="width: 0%;"></div></div>
+              <span id="trait-danceability-val" class="trait-value tabular-nums">—</span>
+            </div>
+            <div class="trait-row">
+              <span class="trait-label">Energy</span>
+              <div class="trait-track"><div id="trait-energy" class="trait-fill" style="width: 0%;"></div></div>
+              <span id="trait-energy-val" class="trait-value tabular-nums">—</span>
+            </div>
+            <div class="trait-row">
+              <span class="trait-label">Valence</span>
+              <div class="trait-track"><div id="trait-valence" class="trait-fill" style="width: 0%;"></div></div>
+              <span id="trait-valence-val" class="trait-value tabular-nums">—</span>
+            </div>
+            <div class="trait-row">
+              <span class="trait-label">Acousticness</span>
+              <div class="trait-track"><div id="trait-acousticness" class="trait-fill" style="width: 0%;"></div></div>
+              <span id="trait-acousticness-val" class="trait-value tabular-nums">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommended Tracks -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Recommended tracks</h3>
+            <p class="panel-caption">Nearest neighbours within your dominant persona</p>
+          </div>
+
+          <ul class="recommendations-list" id="recommendations-list">
+            <li class="rec-item" style="color: var(--text-3); font-size: 12px; background: transparent; border: none; padding: 16px 0;">
+              Run an analysis to discover songs matching your primary sound persona.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="site-footer">
+        <p>k-means (k=7) · Yeo-Johnson transform · 2D PCA projection · 127,900 tracks</p>
+        <p style="margin-top: 4px; color: var(--text-3); font-size: 11px;">
+          Cluster separation is moderate (silhouette ≈ 0.17–0.20), so personas overlap by nature.
+        </p>
+      </footer>
+    </main>
+  </div>
+
+  <!-- ====================================================================
+       4. CLIENT JAVASCRIPT
+       ==================================================================== -->
+  <script>
+    /**
+     * Music Taste Profile Engine — Pure Vanilla JS Client Architecture
+     * - Pure function rendering based on single reactive state
+     * - HTML Canvas Scatter Plot with Retina / devicePixelRatio support
+     * - Inline SVG Donut Chart with Hamilton Largest-Remainder Rounding
+     * - Debounced Autocomplete with keyboard navigation
+     */
+
+    // Configuration
+    const API_BASE = window.location.protocol.startsWith("http") ? window.location.origin : "http://localhost:8000";
+    const IS_MOCK = new URLSearchParams(window.location.search).get("mock") === "1";
+
+    // 7 Canonical Personas and assigned CSS color tokens
+    const PERSONA_COLORS = {
+      "Raw Energy & High-Octane Rock": "var(--persona-0)",
+      "Rhythmic Flow & Hip-Hop Beats": "var(--persona-1)",
+      "Upbeat Dance & Sunny Pop": "var(--persona-2)",
+      "Alternative Edge & Dark Grunge": "var(--persona-3)",
+      "Hypnotic Beats & Electronic Club": "var(--persona-4)",
+      "Chill Acoustic & Moody Ballads": "var(--persona-5)",
+      "Deep Ambient & Atmospheric Chill": "var(--persona-6)"
+    };
+
+    // Concrete hex values for Canvas drawing
+    const PERSONA_HEX = {
+      "Raw Energy & High-Octane Rock": "#E58E7A",
+      "Rhythmic Flow & Hip-Hop Beats": "#E6C07B",
+      "Upbeat Dance & Sunny Pop": "#7CC4F5",
+      "Alternative Edge & Dark Grunge": "#9A8CF0",
+      "Hypnotic Beats & Electronic Club": "#5FD0C4",
+      "Chill Acoustic & Moody Ballads": "#E88FB0",
+      "Deep Ambient & Atmospheric Chill": "#8A98A8"
+    };
+
+    // Central State
+    const state = {
+      selectedTracks: [],       // Array of { track_id, track_name, artists, persona }
+      soundMapData: null,       // { points: [{pca_x, pca_y, persona}], explained_variance: [0.34, 0.17] }
+      tasteProfile: null,       // Result of POST /api/taste-profile
+      status: "initial",        // 'initial' | 'loading' | 'results' | 'error'
+      errorMessage: "",
+      highlightedPersona: null, // For linked hover interactions
+      hoveredUserPoint: null,   // Currently hovered point on scatter canvas
+      searchDropdownIndex: -1,
+      searchResults: []
+    };
+
+    // DOM Elements Cache
+    const el = {
+      searchInput: document.getElementById("track-search-input"),
+      searchDropdown: document.getElementById("search-results-dropdown"),
+      selectedList: document.getElementById("selected-tracks-list"),
+      trackCountBadge: document.getElementById("track-count-badge"),
+      analyzeBtn: document.getElementById("analyze-btn"),
+      clearAllBtn: document.getElementById("clear-all-btn"),
+      statusBanner: document.getElementById("status-banner"),
+      statusBannerText: document.getElementById("status-banner-text"),
+      bannerRetryBtn: document.getElementById("banner-retry-btn"),
+
+      // Summary
+      topPersonaContainer: document.getElementById("top-persona-container"),
+      topPersonaSubtext: document.getElementById("top-persona-subtext"),
+      diversityVal: document.getElementById("diversity-score-val"),
+      diversityLabel: document.getElementById("diversity-score-label"),
+      lowSampleWarning: document.getElementById("low-sample-warning"),
+      tracksMatchedVal: document.getElementById("tracks-matched-val"),
+
+      // Scatter
+      canvas: document.getElementById("sound-map-canvas"),
+      canvasContainer: document.getElementById("canvas-container"),
+      canvasTooltip: document.getElementById("canvas-tooltip"),
+      initialOverlay: document.getElementById("initial-map-overlay"),
+      axisComp1: document.getElementById("axis-component-1"),
+      axisComp2: document.getElementById("axis-component-2"),
+
+      // Donut
+      donutSvg: document.getElementById("donut-svg"),
+      donutCenterPct: document.getElementById("donut-center-pct"),
+      donutCenterName: document.getElementById("donut-center-name"),
+      donutLegend: document.getElementById("donut-legend"),
+
+      // Bottom
+      traitDance: document.getElementById("trait-danceability"),
+      traitDanceVal: document.getElementById("trait-danceability-val"),
+      traitEnergy: document.getElementById("trait-energy"),
+      traitEnergyVal: document.getElementById("trait-energy-val"),
+      traitValence: document.getElementById("trait-valence"),
+      traitValenceVal: document.getElementById("trait-valence-val"),
+      traitAcoustic: document.getElementById("trait-acousticness"),
+      traitAcousticVal: document.getElementById("trait-acousticness-val"),
+      recList: document.getElementById("recommendations-list")
+    };
+
+    /* ==========================================================================
+       HELPERS & UTILITIES
+       ========================================================================== */
+
+    // Safe HTML Escaping (Anti-XSS)
+    function escapeHtml(str) {
+      if (typeof str !== "string") return "";
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Largest-Remainder Rounding (Hamilton method) to ensure percentages strictly sum to 100%
+    function roundPercentagesTo100(rawMap) {
+      const keys = Object.keys(rawMap);
+      if (keys.length === 0) return {};
+
+      const items = keys.map(k => {
+        const val = rawMap[k] * 100;
+        const floor = Math.floor(val);
+        const remainder = val - floor;
+        return { key: k, floor, remainder };
+      });
+
+      const currentSum = items.reduce((sum, item) => sum + item.floor, 0);
+      let diff = 100 - currentSum;
+
+      // Sort descending by remainder
+      items.sort((a, b) => b.remainder - a.remainder);
+
+      for (let i = 0; i < diff; i++) {
+        items[i % items.length].floor += 1;
+      }
+
+      const res = {};
+      items.forEach(it => {
+        res[it.key] = it.floor;
+      });
+      return res;
+    }
+
+    /* ==========================================================================
+       MOCK FIXTURES (?mock=1)
+       ========================================================================== */
+    const MOCK_FIXTURE = {
+      soundMap: {
+        explained_variance: [0.343, 0.175],
+        points: (function() {
+          const names = Object.keys(PERSONA_HEX);
+          const pts = [];
+          for (let i = 0; i < 2000; i++) {
+            const persona = names[i % names.length];
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.random() * 6;
+            const cx = (names.indexOf(persona) - 3) * 2;
+            const cy = (names.indexOf(persona) % 2 === 0 ? 1 : -1) * 2.5;
+            pts.push({
+              pca_x: +(cx + Math.cos(angle) * r).toFixed(3),
+              pca_y: +(cy + Math.sin(angle) * r).toFixed(3),
+              persona: persona
+            });
+          }
+          return pts;
+        })()
+      },
+      searchCatalog: [
+        { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", album_name: "A Night at the Opera", track_genre: "classic rock", persona: "Alternative Edge & Dark Grunge" },
+        { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", album_name: "Jazz", track_genre: "glam rock", persona: "Upbeat Dance & Sunny Pop" },
+        { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", album_name: "DAMN.", track_genre: "hip-hop", persona: "Rhythmic Flow & Hip-Hop Beats" },
+        { track_id: "mock_4", track_name: "One More Time", artists: "Daft Punk", album_name: "Discovery", track_genre: "electronic", persona: "Hypnotic Beats & Electronic Club" },
+        { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", album_name: "WHEN WE ALL FALL ASLEEP", track_genre: "electropop", persona: "Upbeat Dance & Sunny Pop" },
+        { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", album_name: "For Emma, Forever Ago", track_genre: "indie folk", persona: "Chill Acoustic & Moody Ballads" },
+        { track_id: "mock_7", track_name: "Weightless", artists: "Marconi Union", album_name: "Weightless", track_genre: "ambient", persona: "Deep Ambient & Atmospheric Chill" },
+        { track_id: "mock_8", track_name: "Smells Like Teen Spirit", artists: "Nirvana", album_name: "Nevermind", track_genre: "grunge", persona: "Raw Energy & High-Octane Rock" }
+      ],
+      tasteProfile: {
+        persona_breakdown: {
+          "Upbeat Dance & Sunny Pop": 0.40,
+          "Rhythmic Flow & Hip-Hop Beats": 0.30,
+          "Alternative Edge & Dark Grunge": 0.20,
+          "Chill Acoustic & Moody Ballads": 0.10
+        },
+        diversity_score: 0.58,
+        percentiles: {
+          danceability: 74.2,
+          energy: 68.5,
+          valence: 54.0,
+          acousticness: 28.1
+        },
+        recommendations: [
+          { track_id: "rec_1", track_name: "Levitating", artists: "Dua Lipa", album_name: "Future Nostalgia" },
+          { track_id: "rec_2", track_name: "Blinding Lights", artists: "The Weeknd", album_name: "After Hours" },
+          { track_id: "rec_3", track_name: "Get Lucky", artists: "Daft Punk ft. Pharrell", album_name: "Random Access Memories" }
+        ],
+        user_songs: [
+          { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", pca_x: 2.1, pca_y: 1.4, persona: "Upbeat Dance & Sunny Pop" },
+          { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", pca_x: -1.8, pca_y: -0.5, persona: "Rhythmic Flow & Hip-Hop Beats" },
+          { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", pca_x: 3.4, pca_y: 0.8, persona: "Upbeat Dance & Sunny Pop" },
+          { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", pca_x: -0.9, pca_y: 3.1, persona: "Alternative Edge & Dark Grunge" },
+          { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", pca_x: -4.2, pca_y: -2.3, persona: "Chill Acoustic & Moody Ballads" }
+        ]
+      }
+    };
+
+    /* ==========================================================================
+       API CLIENT
+       ========================================================================== */
+
+    async function fetchSoundMap() {
+      if (IS_MOCK) {
+        return MOCK_FIXTURE.soundMap;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/sound-map?n=6000`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        console.warn("Sound map API failed, using fallback points:", err);
+        return MOCK_FIXTURE.soundMap;
+      }
+    }
+
+    async function searchTracksApi(query) {
+      if (!query || !query.trim()) return [];
+      if (IS_MOCK) {
+        const q = query.toLowerCase();
+        return MOCK_FIXTURE.searchCatalog.filter(t =>
+          t.track_name.toLowerCase().includes(q) ||
+          t.artists.toLowerCase().includes(q) ||
+          t.track_genre.toLowerCase().includes(q)
+        );
+      }
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=8`);
+      if (!res.ok) throw new Error(`Search failed: HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    async function analyzeTasteApi(trackIds) {
+      if (IS_MOCK) {
+        await new Promise(r => setTimeout(r, 450));
+        return MOCK_FIXTURE.tasteProfile;
+      }
+      const res = await fetch(`${API_BASE}/api/taste-profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ track_ids: trackIds })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        const msg = errJson && errJson.detail ? errJson.detail : `Server error: HTTP ${res.status}`;
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      }
+      return await res.json();
+    }
+
+    /* ==========================================================================
+       RENDER FUNCTIONS (Pure State -> DOM)
+       ========================================================================== */
+
+    // 1. Sidebar Selected Tracks List
+    function renderSelectedTracks() {
+      const count = state.selectedTracks.length;
+      el.trackCountBadge.textContent = `${count} / 20`;
+      el.analyzeBtn.disabled = count === 0 || state.status === "loading";
+      el.clearAllBtn.disabled = count === 0 || state.status === "loading";
+
+      if (count === 0) {
+        el.selectedList.innerHTML = `
+          <li class="empty-tracks-placeholder">
+            Add 1 to 20 tracks to analyze your sound distribution.
+          </li>
+        `;
+        return;
+      }
+
+      el.selectedList.innerHTML = state.selectedTracks.map((tr, idx) => {
+        const dotColor = PERSONA_COLORS[tr.persona] || "var(--text-3)";
+        return `
+          <li class="selected-track-item" data-index="${idx}">
+            <span class="track-persona-dot" style="background-color: ${dotColor};"></span>
+            <div class="selected-track-info">
+              <span class="selected-track-name" title="${escapeHtml(tr.track_name)}">${escapeHtml(tr.track_name)}</span>
+              <span class="selected-track-artist">${escapeHtml(tr.artists)}</span>
+            </div>
+            <button class="remove-track-btn" data-track-id="${escapeHtml(tr.track_id)}" aria-label="Remove ${escapeHtml(tr.track_name)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </li>
+        `;
+      }).join("");
+    }
+
+    // 2. Summary KPI Row
+    function renderSummaryRow() {
+      if (state.status === "initial") {
+        el.topPersonaContainer.innerHTML = `<span style="color: var(--text-3); font-weight: 400; font-size: 14px;">—</span>`;
+        el.topPersonaSubtext.textContent = "Awaiting analysis";
+        el.diversityVal.textContent = "—";
+        el.diversityLabel.textContent = "—";
+        el.lowSampleWarning.style.display = "none";
+        el.tracksMatchedVal.textContent = "—";
+        return;
+      }
+
+      if (state.status === "loading") {
+        el.topPersonaContainer.innerHTML = `<div class="skeleton" style="width: 140px; height: 22px;"></div>`;
+        el.topPersonaSubtext.innerHTML = `<div class="skeleton" style="width: 80px; height: 14px; margin-top: 4px;"></div>`;
+        el.diversityVal.innerHTML = `<div class="skeleton" style="width: 60px; height: 32px;"></div>`;
+        el.diversityLabel.textContent = "";
+        el.lowSampleWarning.style.display = "none";
+        el.tracksMatchedVal.innerHTML = `<div class="skeleton" style="width: 70px; height: 32px;"></div>`;
+        return;
+      }
+
+      if (state.status === "results" && state.tasteProfile) {
+        const prof = state.tasteProfile;
+        const breakdown = prof.persona_breakdown || {};
+        const roundedPcts = roundPercentagesTo100(breakdown);
+
+        // Find dominant persona
+        let topName = "—";
+        let topPct = 0;
+        let maxVal = -1;
+        for (const [name, frac] of Object.entries(breakdown)) {
+          if (frac > maxVal) {
+            maxVal = frac;
+            topName = name;
+            topPct = roundedPcts[name] || Math.round(frac * 100);
+          }
+        }
+
+        const topColor = PERSONA_COLORS[topName] || "var(--accent)";
+        el.topPersonaContainer.innerHTML = `
+          <span class="track-persona-dot" style="background-color: ${topColor}; width: 8px; height: 8px;"></span>
+          <span>${escapeHtml(topName)}</span>
+        `;
+        el.topPersonaSubtext.textContent = `${topPct}% of your analyzed taste`;
+
+        // Diversity Score
+        const dScore = prof.diversity_score;
+        el.diversityVal.textContent = dScore.toFixed(2);
+        let dLabel = "Focused";
+        if (dScore >= 0.35 && dScore <= 0.65) dLabel = "Balanced";
+        else if (dScore > 0.65) dLabel = "Eclectic";
+        el.diversityLabel.textContent = dLabel;
+
+        const matchedCount = (prof.user_songs || []).length;
+        el.lowSampleWarning.style.display = matchedCount < 5 ? "inline" : "none";
+
+        // Tracks Matched
+        el.tracksMatchedVal.textContent = `${matchedCount} of ${state.selectedTracks.length}`;
+      }
+    }
+
+    // 3. Audio Traits Percentiles & Recommendations
+    function renderBottomRow() {
+      if (state.status === "initial") {
+        ["danceability", "energy", "valence", "acousticness"].forEach(tr => {
+          document.getElementById(`trait-${tr}`).style.width = "0%";
+          document.getElementById(`trait-${tr}-val`).textContent = "—";
+        });
+        el.recList.innerHTML = `
+          <li class="rec-item" style="color: var(--text-3); font-size: 12px; background: transparent; border: none; padding: 16px 0;">
+            Run an analysis to discover songs matching your primary sound persona.
+          </li>
+        `;
+        return;
+      }
+
+      if (state.status === "loading") {
+        ["danceability", "energy", "valence", "acousticness"].forEach(tr => {
+          document.getElementById(`trait-${tr}`).style.width = "20%";
+          document.getElementById(`trait-${tr}-val`).innerHTML = `<div class="skeleton" style="width: 32px; height: 16px; margin-left: auto;"></div>`;
+        });
+        el.recList.innerHTML = [1, 2, 3].map(() => `
+          <li class="rec-item">
+            <div class="skeleton" style="width: 140px; height: 16px; margin-bottom: 4px;"></div>
+            <div class="skeleton" style="width: 100px; height: 12px;"></div>
+          </li>
+        `).join("");
+        return;
+      }
+
+      if (state.status === "results" && state.tasteProfile) {
+        const pct = state.tasteProfile.percentiles || {};
+        ["danceability", "energy", "valence", "acousticness"].forEach(tr => {
+          const val = pct[tr] !== undefined ? pct[tr] : 0;
+          document.getElementById(`trait-${tr}`).style.width = `${Math.min(100, Math.max(0, val))}%`;
+          document.getElementById(`trait-${tr}-val`).textContent = `${Math.round(val)}th`;
+        });
+
+        const recs = state.tasteProfile.recommendations || [];
+        if (recs.length === 0) {
+          el.recList.innerHTML = `<li class="rec-item" style="color: var(--text-3);">No recommendation matches found.</li>`;
+        } else {
+          el.recList.innerHTML = recs.map(r => `
+            <li class="rec-item">
+              <span class="rec-track-name" title="${escapeHtml(r.track_name)}">${escapeHtml(r.track_name)}</span>
+              <span class="rec-track-meta">${escapeHtml(r.artists)} · ${escapeHtml(r.album_name || "")}</span>
+            </li>
+          `).join("");
+        }
+      }
+    }
+
+    // 4. SVG Donut Chart Renderer
+    function renderDonutChart() {
+      const breakdown = (state.tasteProfile && state.tasteProfile.persona_breakdown) || {};
+      const entries = Object.entries(breakdown).filter(([_, frac]) => frac > 0);
+
+      // Sort descending by share
+      entries.sort((a, b) => b[1] - a[1]);
+
+      if (state.status === "initial" || entries.length === 0) {
+        el.donutSvg.innerHTML = `
+          <circle cx="120" cy="120" r="85" fill="none" stroke="var(--surface-raised)" stroke-width="22" opacity="0.4"/>
+        `;
+        el.donutCenterPct.textContent = "—";
+        el.donutCenterName.textContent = "Awaiting tracks";
+        el.donutLegend.innerHTML = `
+          <li style="color: var(--text-3); font-size: 12px; text-align: center; padding: 12px 0;">
+            Distribution splits will display here.
+          </li>
+        `;
+        return;
+      }
+
+      const roundedPcts = roundPercentagesTo100(breakdown);
+      const circumference = 2 * Math.PI * 85; // ~534.07
+      const gap = 2; // small 2px visual gap between segments
+
+      let currentOffset = 0;
+      let svgHtml = "";
+
+      entries.forEach(([name, frac]) => {
+        const pct = roundedPcts[name] || Math.round(frac * 100);
+        const segmentLength = (pct / 100) * circumference;
+        const dashArrayVal = Math.max(0, segmentLength - gap);
+        const color = PERSONA_HEX[name] || "#7CC4F5";
+
+        svgHtml += `
+          <circle
+            class="donut-segment"
+            cx="120"
+            cy="120"
+            r="85"
+            fill="none"
+            stroke="${color}"
+            stroke-width="22"
+            stroke-dasharray="${dashArrayVal.toFixed(2)} ${(circumference - dashArrayVal).toFixed(2)}"
+            stroke-dashoffset="${(-currentOffset).toFixed(2)}"
+            data-persona="${escapeHtml(name)}"
+            data-pct="${pct}"
+          />
+        `;
+        currentOffset += segmentLength;
+      });
+
+      el.donutSvg.innerHTML = svgHtml;
+
+      // Default Center Text: Dominant Persona
+      const dominantName = entries[0][0];
+      const dominantPct = roundedPcts[dominantName];
+      setDonutCenter(dominantPct, dominantName);
+
+      // Donut Legend
+      el.donutLegend.innerHTML = entries.map(([name, frac]) => {
+        const pct = roundedPcts[name] || Math.round(frac * 100);
+        const color = PERSONA_COLORS[name] || "var(--accent)";
+        const isActive = state.highlightedPersona === name ? "active" : "";
+        return `
+          <li class="legend-item ${isActive}" data-persona="${escapeHtml(name)}" data-pct="${pct}">
+            <div class="legend-left">
+              <span class="track-persona-dot" style="background-color: ${color};"></span>
+              <span class="legend-name">${escapeHtml(name)}</span>
+            </div>
+            <span class="legend-pct tabular-nums">${pct}%</span>
+          </li>
+        `;
+      }).join("");
+
+      // Attach segment & legend hover interactions
+      attachDonutInteractions(dominantPct, dominantName);
+    }
+
+    function setDonutCenter(pct, name) {
+      el.donutCenterPct.textContent = `${pct}%`;
+      el.donutCenterName.textContent = name;
+    }
+
+    function attachDonutInteractions(defaultPct, defaultName) {
+      const segments = el.donutSvg.querySelectorAll(".donut-segment");
+      const legendItems = el.donutLegend.querySelectorAll(".legend-item");
+
+      function handleHover(persona, pct) {
+        setDonutCenter(pct, persona);
+        state.highlightedPersona = persona;
+        legendItems.forEach(li => {
+          if (li.getAttribute("data-persona") === persona) li.classList.add("active");
+          else li.classList.remove("active");
+        });
+        drawCanvas();
+      }
+
+      function handleLeave() {
+        setDonutCenter(defaultPct, defaultName);
+        state.highlightedPersona = null;
+        legendItems.forEach(li => li.classList.remove("active"));
+        drawCanvas();
+      }
+
+      segments.forEach(seg => {
+        seg.addEventListener("mouseenter", () => {
+          handleHover(seg.getAttribute("data-persona"), seg.getAttribute("data-pct"));
+        });
+        seg.addEventListener("mouseleave", handleLeave);
+      });
+
+      legendItems.forEach(item => {
+        item.addEventListener("mouseenter", () => {
+          handleHover(item.getAttribute("data-persona"), item.getAttribute("data-pct"));
+        });
+        item.addEventListener("mouseleave", handleLeave);
+      });
+    }
+
+    // 5. HTML Canvas Scatter Plot Renderer
+    let canvasBounds = { minX: -6.5, maxX: 15.0, minY: -9.5, maxY: 4.5 };
+    let cachedUserScreenCoords = [];
+
+    function updateCanvasBounds(points, userPoints) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      const all = points.concat(userPoints || []);
+      if (all.length === 0) return;
+
+      for (let i = 0; i < all.length; i++) {
+        const p = all[i];
+        if (p.pca_x < minX) minX = p.pca_x;
+        if (p.pca_x > maxX) maxX = p.pca_x;
+        if (p.pca_y < minY) minY = p.pca_y;
+        if (p.pca_y > maxY) maxY = p.pca_y;
+      }
+
+      // Add 6% comfortable padding
+      const padX = (maxX - minX) * 0.06 || 1;
+      const padY = (maxY - minY) * 0.06 || 1;
+      canvasBounds = {
+        minX: minX - padX,
+        maxX: maxX + padX,
+        minY: minY - padY,
+        maxY: maxY + padY
+      };
+    }
+
+    function initCanvasResolution() {
+      const rect = el.canvasContainer.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      el.canvas.width = rect.width * dpr;
+      el.canvas.height = rect.height * dpr;
+      el.canvas.style.width = `${rect.width}px`;
+      el.canvas.style.height = `${rect.height}px`;
+      const ctx = el.canvas.getContext("2d");
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+    }
+
+    function drawCanvas() {
+      const ctx = el.canvas.getContext("2d");
+      const rect = el.canvasContainer.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      if (!width || !height) return;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Faint subtle 1px gridlines
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+
+      const gridCols = 4;
+      const gridRows = 4;
+      for (let i = 1; i < gridCols; i++) {
+        const gx = (width / gridCols) * i;
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, height);
+        ctx.stroke();
+      }
+      for (let j = 1; j < gridRows; j++) {
+        const gy = (height / gridRows) * j;
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(width, gy);
+        ctx.stroke();
+      }
+
+      const points = (state.soundMapData && state.soundMapData.points) || [];
+      const userSongs = (state.tasteProfile && state.tasteProfile.user_songs) || [];
+      const isInitial = state.status === "initial" || state.status === "loading";
+
+      // Coordinate mapper
+      function toScreenX(x) {
+        return ((x - canvasBounds.minX) / (canvasBounds.maxX - canvasBounds.minX)) * width;
+      }
+      function toScreenY(y) {
+        return height - ((y - canvasBounds.minY) / (canvasBounds.maxY - canvasBounds.minY)) * height;
+      }
+
+      // Draw background points
+      if (isInitial) {
+        // Initial Neutral State: all points --text-3 at low alpha (~0.2)
+        ctx.fillStyle = "#66737F";
+        ctx.globalAlpha = 0.22;
+        for (let i = 0; i < points.length; i++) {
+          const pt = points[i];
+          const sx = toScreenX(pt.pca_x);
+          const sy = toScreenY(pt.pca_y);
+          ctx.beginPath();
+          ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+        el.initialOverlay.style.display = "block";
+      } else {
+        el.initialOverlay.style.display = "none";
+        const highPersona = state.highlightedPersona;
+
+        // Draw background points with persona colors
+        for (let i = 0; i < points.length; i++) {
+          const pt = points[i];
+          const color = PERSONA_HEX[pt.persona] || "#7CC4F5";
+          const isMatch = !highPersona || pt.persona === highPersona;
+
+          ctx.fillStyle = color;
+          ctx.globalAlpha = highPersona ? (isMatch ? 0.85 : 0.08) : 0.35;
+
+          const sx = toScreenX(pt.pca_x);
+          const sy = toScreenY(pt.pca_y);
+          ctx.beginPath();
+          ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Draw user songs (6px dots, full opacity, 1.5px --text-1 ring)
+        cachedUserScreenCoords = [];
+        for (let j = 0; j < userSongs.length; j++) {
+          const u = userSongs[j];
+          const sx = toScreenX(u.pca_x);
+          const sy = toScreenY(u.pca_y);
+          const color = PERSONA_HEX[u.persona] || "#7CC4F5";
+          const isMatch = !highPersona || u.persona === highPersona;
+
+          cachedUserScreenCoords.push({
+            x: sx,
+            y: sy,
+            radius: 6,
+            song: u
+          });
+
+          ctx.globalAlpha = highPersona ? (isMatch ? 1.0 : 0.2) : 1.0;
+
+          // Outer 1.5px ring
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = "#E8EEF3";
+          ctx.beginPath();
+          ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Dot Fill
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    // Canvas Mouse Interaction for User Song Tooltips
+    function attachCanvasEvents() {
+      el.canvas.addEventListener("mousemove", (e) => {
+        if (state.status !== "results") {
+          el.canvasTooltip.style.display = "none";
+          return;
+        }
+
+        const rect = el.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let hit = null;
+        for (let i = 0; i < cachedUserScreenCoords.length; i++) {
+          const u = cachedUserScreenCoords[i];
+          const dx = mx - u.x;
+          const dy = my - u.y;
+          if (dx * dx + dy * dy <= 8 * 8) { // 8px hit radius
+            hit = u;
+            break;
+          }
+        }
+
+        if (hit) {
+          const s = hit.song;
+          const dotColor = PERSONA_COLORS[s.persona] || "var(--accent)";
+          el.canvasTooltip.innerHTML = `
+            <div class="tt-name">${escapeHtml(s.track_name)}</div>
+            <div class="tt-artist">${escapeHtml(s.artists)}</div>
+            <div class="tt-persona">
+              <span class="track-persona-dot" style="background-color: ${dotColor};"></span>
+              <span>${escapeHtml(s.persona)}</span>
+            </div>
+          `;
+          el.canvasTooltip.style.display = "block";
+
+          // Tooltip position clamped to canvas bounds
+          const tipW = 200;
+          let tipX = hit.x + 12;
+          if (tipX + tipW > rect.width) tipX = hit.x - tipW - 12;
+          let tipY = hit.y - 30;
+          if (tipY < 10) tipY = hit.y + 12;
+
+          el.canvasTooltip.style.left = `${tipX}px`;
+          el.canvasTooltip.style.top = `${tipY}px`;
+        } else {
+          el.canvasTooltip.style.display = "none";
+        }
+      });
+
+      el.canvas.addEventListener("mouseleave", () => {
+        el.canvasTooltip.style.display = "none";
+      });
+    }
+
+    /* ==========================================================================
+       AUTOCOMPLETE SEARCH LOGIC
+       ========================================================================== */
+    let searchDebounceTimer = null;
+
+    function handleSearchInput(e) {
+      const q = e.target.value.trim();
+      clearTimeout(searchDebounceTimer);
+
+      if (!q) {
+        closeSearchDropdown();
+        return;
+      }
+
+      searchDebounceTimer = setTimeout(async () => {
+        try {
+          const results = await searchTracksApi(q);
+          state.searchResults = results || [];
+          state.searchDropdownIndex = -1;
+          renderSearchDropdown(q);
+        } catch (err) {
+          console.error("Search failed:", err);
+          state.searchResults = [];
+          renderSearchDropdown(q);
+        }
+      }, 200);
+    }
+
+    function renderSearchDropdown(query) {
+      if (!state.searchResults || state.searchResults.length === 0) {
+        el.searchDropdown.innerHTML = `<div class="search-empty">No tracks match '${escapeHtml(query)}'</div>`;
+        el.searchDropdown.classList.add("open");
+        return;
+      }
+
+      el.searchDropdown.innerHTML = state.searchResults.map((item, idx) => `
+        <div class="search-result-item ${idx === state.searchDropdownIndex ? 'selected' : ''}" data-idx="${idx}" role="option">
+          <span class="search-result-name">${escapeHtml(item.track_name)}</span>
+          <span class="search-result-meta">${escapeHtml(item.artists)} · ${escapeHtml(item.track_genre || item.persona || "")}</span>
+        </div>
+      `).join("");
+      el.searchDropdown.classList.add("open");
+    }
+
+    function closeSearchDropdown() {
+      el.searchDropdown.classList.remove("open");
+      state.searchDropdownIndex = -1;
+      state.searchResults = [];
+    }
+
+    function addTrackToSelection(track) {
+      if (state.selectedTracks.length >= 20) {
+        return; // Capped at 20
+      }
+      // Deduplicate by track_id
+      const exists = state.selectedTracks.some(t => t.track_id === track.track_id);
+      if (!exists) {
+        state.selectedTracks.push(track);
+        renderSelectedTracks();
+      }
+      el.searchInput.value = "";
+      closeSearchDropdown();
+    }
+
+    function removeTrackFromSelection(trackId) {
+      state.selectedTracks = state.selectedTracks.filter(t => t.track_id !== trackId);
+      renderSelectedTracks();
+    }
+
+    /* ==========================================================================
+       ANALYSIS DISPATCHER
+       ========================================================================== */
+    async function triggerAnalysis() {
+      if (state.selectedTracks.length === 0) return;
+
+      state.status = "loading";
+      el.statusBanner.className = "status-banner"; // Hide error
+      renderSummaryRow();
+      renderBottomRow();
+      renderDonutChart();
+      drawCanvas();
+
+      const startTime = Date.now();
+      const trackIds = state.selectedTracks.map(t => t.track_id);
+
+      try {
+        const profile = await analyzeTasteApi(trackIds);
+
+        // Guarantee min 300ms loading skeleton per requirements
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 300) {
+          await new Promise(r => setTimeout(r, 300 - elapsed));
+        }
+
+        state.tasteProfile = profile;
+        state.status = "results";
+
+        // Update canvas bounds with user tracks included
+        const pts = (state.soundMapData && state.soundMapData.points) || [];
+        updateCanvasBounds(pts, profile.user_songs || []);
+
+        renderSummaryRow();
+        renderBottomRow();
+        renderDonutChart();
+        drawCanvas();
+      } catch (err) {
+        state.status = "error";
+        state.errorMessage = err.message || "Failed to analyze tracks";
+        el.statusBannerText.textContent = state.errorMessage;
+        el.statusBanner.className = "status-banner error";
+        renderSummaryRow();
+        renderBottomRow();
+        renderDonutChart();
+        drawCanvas();
+      }
+    }
+
+    /* ==========================================================================
+       EVENT WIRING & INITIALIZATION
+       ========================================================================== */
+    function wireEvents() {
+      // Search input events
+      el.searchInput.addEventListener("input", handleSearchInput);
+
+      el.searchInput.addEventListener("keydown", (e) => {
+        if (!el.searchDropdown.classList.contains("open")) return;
+        const total = state.searchResults.length;
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          state.searchDropdownIndex = (state.searchDropdownIndex + 1) % total;
+          renderSearchDropdown(el.searchInput.value);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          state.searchDropdownIndex = (state.searchDropdownIndex - 1 + total) % total;
+          renderSearchDropdown(el.searchInput.value);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (state.searchDropdownIndex >= 0 && state.searchResults[state.searchDropdownIndex]) {
+            addTrackToSelection(state.searchResults[state.searchDropdownIndex]);
+          }
+        } else if (e.key === "Escape") {
+          closeSearchDropdown();
+        }
+      });
+
+      // Search item click delegation
+      el.searchDropdown.addEventListener("click", (e) => {
+        const item = e.target.closest(".search-result-item");
+        if (item) {
+          const idx = parseInt(item.getAttribute("data-idx"), 10);
+          if (state.searchResults[idx]) {
+            addTrackToSelection(state.searchResults[idx]);
+          }
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".search-container")) {
+          closeSearchDropdown();
+        }
+      });
+
+      // Remove track delegation
+      el.selectedList.addEventListener("click", (e) => {
+        const btn = e.target.closest(".remove-track-btn");
+        if (btn) {
+          const id = btn.getAttribute("data-track-id");
+          removeTrackFromSelection(id);
+        }
+      });
+
+      // Primary buttons
+      el.analyzeBtn.addEventListener("click", triggerAnalysis);
+
+      el.clearAllBtn.addEventListener("click", () => {
+        state.selectedTracks = [];
+        state.tasteProfile = null;
+        state.status = "initial";
+        el.statusBanner.className = "status-banner";
+        renderSelectedTracks();
+        renderSummaryRow();
+        renderBottomRow();
+        renderDonutChart();
+        drawCanvas();
+      });
+
+      el.bannerRetryBtn.addEventListener("click", triggerAnalysis);
+
+      // Canvas resize handling
+      window.addEventListener("resize", () => {
+        initCanvasResolution();
+        drawCanvas();
+      });
+
+      attachCanvasEvents();
+    }
+
+    async function init() {
+      wireEvents();
+      initCanvasResolution();
+
+      renderSelectedTracks();
+      renderSummaryRow();
+      renderBottomRow();
+      renderDonutChart();
+
+      // Fetch background sound map
+      try {
+        const mapData = await fetchSoundMap();
+        state.soundMapData = mapData;
+        if (mapData.explained_variance) {
+          const v1 = Math.round(mapData.explained_variance[0] * 100);
+          const v2 = Math.round(mapData.explained_variance[1] * 100);
+          el.axisComp1.textContent = `Component 1 (${v1}%)`;
+          el.axisComp2.textContent = `Component 2 (${v2}%)`;
+        }
+        updateCanvasBounds(mapData.points || [], []);
+        drawCanvas();
+      } catch (err) {
+        console.warn("Could not load initial sound map points:", err);
+      }
+
+      // If mock mode is active, pre-populate sample tracks for fast verification
+      if (IS_MOCK) {
+        state.selectedTracks = MOCK_FIXTURE.searchCatalog.slice(0, 5);
+        renderSelectedTracks();
+      }
+    }
+
+    // Bootstrap app once DOM is ready
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

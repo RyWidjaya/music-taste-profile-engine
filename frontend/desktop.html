@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Taste Profile Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       HIGH-CRAFT BESPOKE AUDIO SYSTEM
+       - No card-in-a-card or floating pill bubbles
+       - Deep matte obsidian (#0B0B0D) + Warm Off-White (#F4F3EF)
+       - Acid Chartreuse (#E2FF3B) reserved exclusively for active states
+       - True Monospace (JetBrains Mono) for all computational telemetry
+       - 1px hairline dividers (border-white/10) & intentional whitespace
+       ========================================================================== */
+    :root {
+      /* Palette */
+      --bg-base:        #0B0B0D;     /* Deep matte obsidian */
+      --bg-surface:     #141417;     /* Elevated surface (used sparingly) */
+      --bg-inset:       #0F0F12;     /* Canvas & input recessed beds */
+      --bg-hover:       #1B1B20;     /* Table row hover */
+
+      /* Dividers */
+      --rule:           rgba(255, 255, 255, 0.09);
+      --rule-emphasis:  rgba(255, 255, 255, 0.18);
+
+      /* Typography Ink */
+      --ink-primary:    #F4F3EF;     /* Warm off-white */
+      --ink-secondary:  #8E8D8A;     /* Muted neutral */
+      --ink-dim:        #575653;     /* Tertiary captions */
+
+      /* Single High-Contrast Accent: Acid Chartreuse */
+      --accent:         #E2FF3B;
+      --accent-tint:    rgba(226, 255, 59, 0.10);
+      --accent-glow:    rgba(226, 255, 59, 0.25);
+
+      /* Desaturated Persona Tones */
+      --c-midnight:     #E2FF3B;     /* Dominant (Acid Chartreuse) */
+      --c-acoustic:     #9CA894;     /* Looming Acoustic */
+      --c-solar:        #C7B493;     /* Solar Pulse */
+      --c-ambient:      #7F9B96;     /* Sunken Ambient */
+      --c-groove:       #9E8FA8;     /* Concrete Groove */
+      --c-chamber:      #868C98;     /* Chamber Intimate */
+      --c-drone:        #62646D;     /* Dusk Drone */
+
+      /* Fonts */
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* CSS Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-feature-settings: "tnum" 1, "zero" 1;
+    }
+
+    /* Slick Full Width Layout (Architectural Grid, Zero Chunky Cards) */
+    .viewport {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 36px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+    }
+
+    /* ==========================================================================
+       1. SLIM, BORDERLESS HEADER
+       Command-style search input (Cmd+K feel) + High-contrast CTA
+       ========================================================================== */
+    .header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .app-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink-primary);
+    }
+
+    .app-dataset-tag {
+      font-size: 12px;
+      color: var(--ink-dim);
+    }
+
+    /* Command-K Search Input */
+    .search-cmd-wrap {
+      flex: 1;
+      max-width: 520px;
+      position: relative;
+    }
+
+    .search-cmd-input {
+      width: 100%;
+      height: 38px;
+      background: var(--bg-inset);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 0 52px 0 38px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--ink-primary);
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-cmd-input:focus {
+      border-color: var(--accent);
+    }
+
+    .search-cmd-input::placeholder {
+      color: var(--ink-dim);
+    }
+
+    .search-cmd-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      stroke: var(--ink-secondary);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    .search-shortcut-kbd {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-dim);
+      background: var(--bg-surface);
+      border: 1px solid var(--rule);
+      padding: 2px 6px;
+      border-radius: 3px;
+      pointer-events: none;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+
+    .counter-telemetry {
+      font-size: 12.5px;
+      color: var(--ink-secondary);
+    }
+
+    .counter-telemetry strong {
+      color: var(--ink-primary);
+      font-weight: 600;
+    }
+
+    .btn-add-track {
+      background: var(--accent);
+      color: #000000;
+      border: none;
+      border-radius: 3px;
+      padding: 8px 16px;
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn-add-track:hover {
+      opacity: 0.92;
+    }
+
+    /* ==========================================================================
+       2. ASYMMETRIC HERO SECTION (Replaces Hero + 4-Card KPI Grid)
+       Left: Dominant Persona Display (60%) | Right: Proportional Distribution (40%)
+       ========================================================================== */
+    .hero-asymmetric {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 48px;
+      align-items: end;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    /* Left: Primary Persona Statement */
+    .hero-statement {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .hero-display-title {
+      font-size: 54px;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.0;
+      color: var(--ink-primary);
+    }
+
+    .hero-sonic-summary {
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--ink-secondary);
+      max-width: 620px;
+      margin-top: 4px;
+    }
+
+    .hero-inline-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--ink-dim);
+    }
+
+    .hero-inline-telemetry span strong {
+      color: var(--ink-primary);
+    }
+
+    /* Right: Compact Proportional Stacked Distribution */
+    .hero-distribution {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .dist-header-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .dist-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    .dist-meta {
+      font-size: 11.5px;
+      color: var(--ink-secondary);
+    }
+
+    /* Single Proportional Stacked Bar */
+    .stacked-persona-bar {
+      height: 8px;
+      width: 100%;
+      background: var(--bg-surface);
+      display: flex;
+      gap: 1px;
+      overflow: hidden;
+      border-radius: 1px;
+    }
+
+    .stacked-segment {
+      height: 100%;
+      transition: opacity 0.15s ease;
+    }
+    .stacked-segment:hover {
+      opacity: 0.8;
+    }
+
+    /* Ranked Distribution List */
+    .persona-rank-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 20px;
+      row-gap: 6px;
+    }
+
+    .persona-rank-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 2px 0;
+    }
+
+    .persona-rank-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .persona-swatch {
+      width: 6px;
+      height: 6px;
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+
+    .persona-name-text {
+      color: var(--ink-secondary);
+      font-weight: 500;
+    }
+    .persona-name-text.dominant-text {
+      color: var(--ink-primary);
+      font-weight: 600;
+    }
+
+    .persona-pct-mono {
+      color: var(--ink-secondary);
+      font-size: 11.5px;
+    }
+    .persona-pct-mono.dominant-pct {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       3. TELEMETRY STRIP (Single Unified Borderless Horizontal Strip)
+       Replaces 3-Card Distribution Row. Zero fluff paragraphs.
+       ========================================================================== */
+    .telemetry-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .telemetry-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 32px 0 0;
+      position: relative;
+    }
+
+    .telemetry-cell:not(:first-child) {
+      padding-left: 32px;
+    }
+
+    .telemetry-cell:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 1px;
+      background: var(--rule);
+    }
+
+    .telemetry-cell-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .telemetry-metric-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    .telemetry-metric-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink-primary);
+    }
+
+    .telemetry-metric-sub {
+      font-size: 11px;
+      color: var(--ink-secondary);
+    }
+
+    /* Clean 40-Bar Spark Histogram */
+    .spark-histo-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 32px;
+      width: 100%;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 2px;
+    }
+
+    .spark-bar {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 0.5px;
+      min-height: 2px;
+    }
+
+    .spark-bar.active-pin {
+      background: var(--accent);
+    }
+
+    .spark-scale-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: var(--ink-dim);
+    }
+
+    /* Single Horizontal Breadth Meter */
+    .spark-breadth-meter {
+      height: 4px;
+      width: 100%;
+      background: var(--bg-surface);
+      position: relative;
+      margin: 14px 0 14px;
+    }
+
+    .spark-breadth-fill {
+      position: absolute;
+      left: 14%;
+      width: 58%;
+      top: 0;
+      bottom: 0;
+      background: var(--accent);
+    }
+
+    /* ==========================================================================
+       4. ACOUSTIC LANDSCAPE MAP (Precision Instrument Visualizer)
+       No chunky borders. Ample negative space, crosshair grids, glowing active marker.
+       ========================================================================== */
+    .map-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .map-header-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink-primary);
+    }
+
+    .section-meta-mono {
+      font-size: 11.5px;
+      color: var(--ink-dim);
+    }
+
+    .instrument-canvas-stage {
+      position: relative;
+      width: 100%;
+      height: 440px;
+      background: var(--bg-inset);
+      border: 1px solid var(--rule);
+      overflow: hidden;
+    }
+
+    .instrument-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .canvas-axis-tag {
+      position: absolute;
+      font-size: 11px;
+      color: var(--ink-dim);
+      padding: 6px 10px;
+      pointer-events: none;
+    }
+    .canvas-axis-tag.tl { top: 0; left: 0; }
+    .canvas-axis-tag.tr { top: 0; right: 0; }
+    .canvas-axis-tag.bl { bottom: 0; left: 0; }
+    .canvas-axis-tag.br { bottom: 0; right: 0; }
+
+    /* Minimal Floating Instrument Tooltip for Active Track */
+    .canvas-tooltip-hud {
+      position: absolute;
+      top: 32%;
+      left: 68%;
+      background: rgba(11, 11, 13, 0.95);
+      border: 1px solid var(--accent);
+      padding: 6px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+    }
+
+    .hud-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--ink-primary);
+    }
+
+    .hud-mono-meta {
+      font-size: 10.5px;
+      color: var(--accent);
+    }
+
+    /* ==========================================================================
+       5. RECOMMENDED UNHEARD TRACKS (Sleek Linear / Spotify Style Tracklist)
+       Replaces 3 bulky cards with scannable authentic metadata.
+       ========================================================================== */
+    .recs-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .tracklist-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    .tracklist-table th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink-dim);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--rule);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .tracklist-table td {
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--rule);
+      color: var(--ink-secondary);
+      vertical-align: middle;
+    }
+
+    .tracklist-table tr:hover td {
+      background: var(--bg-hover);
+    }
+
+    .col-num {
+      width: 36px;
+      color: var(--ink-dim);
+      font-size: 11.5px;
+    }
+
+    .col-play {
+      width: 32px;
+    }
+
+    .play-trigger-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1px solid var(--rule-emphasis);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .play-trigger-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000000;
+    }
+
+    .play-trigger-btn svg {
+      width: 8px;
+      height: 8px;
+      fill: currentColor;
+      margin-left: 1px;
+    }
+
+    .col-title-artist {
+      min-width: 220px;
+    }
+
+    .row-song-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .row-artist-name {
+      font-size: 12px;
+      color: var(--ink-secondary);
+    }
+
+    .genre-tag-inline {
+      font-size: 11px;
+      color: var(--ink-dim);
+      margin-left: 8px;
+    }
+
+    .col-mono-meta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-secondary);
+    }
+
+    .col-match-pct {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Minimal Waveform Scrubber */
+    .col-scrubber {
+      width: 220px;
+    }
+
+    .scrubber-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .scrubber-track {
+      flex: 1;
+      height: 2px;
+      background: var(--rule-emphasis);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .scrubber-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: var(--accent);
+    }
+
+    .scrubber-time {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-dim);
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       6. PLACED TRACKS ARCHIVE TABLE (Dense Data Ledger)
+       ========================================================================== */
+    .archive-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .archive-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    .archive-table th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink-dim);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--rule);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .archive-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--rule);
+      color: var(--ink-secondary);
+    }
+
+    .archive-table tr.active-track-row td {
+      background: var(--accent-tint);
+      color: var(--ink-primary);
+    }
+
+    .archive-table tr.active-track-row td:first-child {
+      border-left: 2px solid var(--accent);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .td-primary-song {
+      color: var(--ink-primary);
+      font-weight: 600;
+    }
+
+    .persona-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .indicator-pip {
+      width: 5px;
+      height: 5px;
+      border-radius: 1px;
+    }
+
+    /* Footer */
+    .site-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-dim);
+      border-top: 1px solid var(--rule);
+    }
+
+    /* Responsive */
+    @media (max-width: 1040px) {
+      .viewport {
+        padding: 16px 20px 60px;
+      }
+      .header-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .search-cmd-wrap {
+        max-width: 100%;
+        width: 100%;
+      }
+      .hero-asymmetric {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+      .telemetry-strip {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      .telemetry-cell {
+        padding: 0 0 16px 0 !important;
+      }
+      .telemetry-cell::after {
+        display: none !important;
+      }
+      .persona-rank-list {
+        grid-template-columns: 1fr;
+      }
+      .hero-display-title {
+        font-size: 38px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="viewport">
+
+    <!-- 1. SLIM, BORDERLESS TOP BAR -->
+    <header class="header-bar">
+      <div class="header-left">
+        <h1 class="app-title">Music Taste Profile Engine</h1>
+        <span class="app-dataset-tag mono">127,900 TRACKS • K-MEANS</span>
+      </div>
+
+      <!-- Command-Style Search Field (Cmd+K feel) -->
+      <div class="search-cmd-wrap">
+        <svg class="search-cmd-icon" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" class="search-cmd-input" placeholder="Search track or artist to place on map..." value="The Weeknd — Starboy">
+        <span class="search-shortcut-kbd">⌘K</span>
+      </div>
+
+      <div class="header-right">
+        <span class="counter-telemetry mono"><strong>12</strong> PLACED</span>
+        <button class="btn-add-track">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Add Song
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. ASYMMETRIC HERO SECTION (Replaces Hero + 4-Card KPI Grid) -->
+    <section class="hero-asymmetric">
+      <!-- Left 60%: Dominant Statement & Punchy Sonic Summary -->
+      <div class="hero-statement">
+        <span class="hero-eyebrow mono">DOMINANT PERSONA DIAGNOSTIC</span>
+        <h2 class="hero-display-title">Midnight Transit</h2>
+        <p class="hero-sonic-summary">
+          Clean synthetic sub-bass, nocturnal driving tempos (120–130 BPM), and compressed vocal prominence with an acoustic undertow.
+        </p>
+        <div class="hero-inline-telemetry mono">
+          <span>SHARE: <strong>42.0%</strong></span>
+          <span>DISPERSION: <strong>4 / 7 REGIONS</strong></span>
+          <span>REF CENTROID: <strong>[+0.68, -0.42]</strong></span>
+        </div>
+      </div>
+
+      <!-- Right 40%: Full Persona Distribution (Stacked Bar & Ranked Telemetry) -->
+      <div class="hero-distribution">
+        <div class="dist-header-row">
+          <span class="dist-label mono">PERSONA MIX (7 CLUSTERS)</span>
+          <span class="dist-meta mono">N=12 USER TRACKS</span>
+        </div>
+
+        <!-- Proportional Stacked Bar -->
+        <div class="stacked-persona-bar">
+          <div class="stacked-segment" style="width: 42.0%; background: var(--c-midnight);" title="Midnight Transit: 42.0%"></div>
+          <div class="stacked-segment" style="width: 18.2%; background: var(--c-acoustic);" title="Looming Acoustic: 18.2%"></div>
+          <div class="stacked-segment" style="width: 14.1%; background: var(--c-solar);" title="Solar Pulse: 14.1%"></div>
+          <div class="stacked-segment" style="width: 9.8%;  background: var(--c-ambient);" title="Sunken Ambient: 9.8%"></div>
+          <div class="stacked-segment" style="width: 7.3%;  background: var(--c-groove);" title="Concrete Groove: 7.3%"></div>
+          <div class="stacked-segment" style="width: 5.1%;  background: var(--c-chamber);" title="Chamber Intimate: 5.1%"></div>
+          <div class="stacked-segment" style="width: 3.5%;  background: var(--c-drone);" title="Dusk Drone: 3.5%"></div>
+        </div>
+
+        <!-- Ranked Distribution List -->
+        <div class="persona-rank-list">
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-midnight);"></span>
+              <span class="persona-name-text dominant-text">Midnight Transit</span>
+            </div>
+            <span class="persona-pct-mono dominant-pct mono">42.0%</span>
+          </div>
+
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-acoustic);"></span>
+              <span class="persona-name-text">Looming Acoustic</span>
+            </div>
+            <span class="persona-pct-mono mono">18.2%</span>
+          </div>
+
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-solar);"></span>
+              <span class="persona-name-text">Solar Pulse</span>
+            </div>
+            <span class="persona-pct-mono mono">14.1%</span>
+          </div>
+
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-ambient);"></span>
+              <span class="persona-name-text">Sunken Ambient</span>
+            </div>
+            <span class="persona-pct-mono mono">9.8%</span>
+          </div>
+
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-groove);"></span>
+              <span class="persona-name-text">Concrete Groove</span>
+            </div>
+            <span class="persona-pct-mono mono">7.3%</span>
+          </div>
+
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-chamber);"></span>
+              <span class="persona-name-text">Chamber Intimate</span>
+            </div>
+            <span class="persona-pct-mono mono">5.1%</span>
+          </div>
+
+          <div class="persona-rank-row">
+            <div class="persona-rank-left">
+              <span class="persona-swatch" style="background: var(--c-drone);"></span>
+              <span class="persona-name-text">Dusk Drone</span>
+            </div>
+            <span class="persona-pct-mono mono">3.5%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. TELEMETRY STRIP (Replaces 3-Card Distribution Row) -->
+    <section class="telemetry-strip">
+      <!-- Energy Cell -->
+      <div class="telemetry-cell">
+        <div class="telemetry-cell-top">
+          <span class="telemetry-metric-title mono">ENERGY DRIVE</span>
+          <span class="telemetry-metric-val mono">0.74 <span class="telemetry-metric-sub">/ 74TH PCT</span></span>
+        </div>
+        <div class="spark-histo-wrap" id="sparkEnergy"></div>
+        <div class="spark-scale-labels mono">
+          <span>0.0 CALM</span>
+          <span style="color: var(--accent);">USER: 0.74</span>
+          <span>1.0 KINETIC</span>
+        </div>
+      </div>
+
+      <!-- Acousticness Cell -->
+      <div class="telemetry-cell">
+        <div class="telemetry-cell-top">
+          <span class="telemetry-metric-title mono">ACOUSTIC BALANCE</span>
+          <span class="telemetry-metric-val mono">0.28 <span class="telemetry-metric-sub">/ 28TH PCT</span></span>
+        </div>
+        <div class="spark-histo-wrap" id="sparkAcoustic"></div>
+        <div class="spark-scale-labels mono">
+          <span>0.0 SYNTHETIC</span>
+          <span style="color: var(--accent);">USER: 0.28</span>
+          <span>1.0 ORGANIC</span>
+        </div>
+      </div>
+
+      <!-- Taste Breadth Cell -->
+      <div class="telemetry-cell">
+        <div class="telemetry-cell-top">
+          <span class="telemetry-metric-title mono">TASTE BREADTH</span>
+          <span class="telemetry-metric-val mono">4 / 7 <span class="telemetry-metric-sub">CLUSTERS</span></span>
+        </div>
+        <div class="spark-breadth-meter">
+          <div class="spark-breadth-fill"></div>
+        </div>
+        <div class="spark-scale-labels mono">
+          <span>FOCUSED</span>
+          <span style="color: var(--accent);">BALANCED REACH</span>
+          <span>ECLECTIC</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. ACOUSTIC LANDSCAPE MAP (Precision Audio Instrument) -->
+    <section class="map-section">
+      <div class="map-header-row">
+        <h3 class="section-title">Acoustic Landscape Map</h3>
+        <span class="section-meta-mono mono">2D PROJECTION • N=127,900 BENCHMARK TRACKS</span>
+      </div>
+
+      <div class="instrument-canvas-stage">
+        <canvas id="audioInstrumentCanvas" class="instrument-canvas"></canvas>
+        <span class="canvas-axis-tag tl mono">+1.0 ACOUSTIC</span>
+        <span class="canvas-axis-tag tr mono">+1.0 ENERGY</span>
+        <span class="canvas-axis-tag bl mono">-1.0 KINETIC</span>
+        <span class="canvas-axis-tag br mono">MODEL COORD PLANE</span>
+
+        <!-- Floating Tooltip HUD for Active Track -->
+        <div class="canvas-tooltip-hud">
+          <span class="hud-title">The Weeknd — Starboy</span>
+          <span class="hud-mono-meta mono">BPM: 186 • KEY: G MIN • COORD: [+0.72, -0.38]</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. RECOMMENDED UNHEARD TRACKS (Sleek Linear/Spotify Tracklist Table) -->
+    <section class="recs-section">
+      <div class="map-header-row">
+        <h3 class="section-title">Recommended Unheard Tracks</h3>
+        <span class="section-meta-mono mono">ADAPTIVE MATCH ALGORITHM</span>
+      </div>
+
+      <table class="tracklist-table">
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-play"></th>
+            <th class="col-title-artist">TRACK / ARTIST</th>
+            <th>YEAR</th>
+            <th>BPM</th>
+            <th>KEY</th>
+            <th>MATCH</th>
+            <th class="col-scrubber">PREVIEW</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Track 1 -->
+          <tr>
+            <td class="col-num mono">01</td>
+            <td class="col-play">
+              <button class="play-trigger-btn" aria-label="Play sample">
+                <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              </button>
+            </td>
+            <td class="col-title-artist">
+              <span class="row-song-title">Sublunary</span>
+              <span class="row-artist-name">— Floating Points</span>
+              <span class="genre-tag-inline mono">IDM / Modular</span>
+            </td>
+            <td class="col-mono-meta mono">2021</td>
+            <td class="col-mono-meta mono">124</td>
+            <td class="col-mono-meta mono">D min</td>
+            <td class="col-match-pct mono">94.2%</td>
+            <td class="col-scrubber">
+              <div class="scrubber-bar-container">
+                <div class="scrubber-track">
+                  <div class="scrubber-fill" style="width: 42%;"></div>
+                </div>
+                <span class="scrubber-time mono">0:30</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Track 2 -->
+          <tr>
+            <td class="col-num mono">02</td>
+            <td class="col-play">
+              <button class="play-trigger-btn" aria-label="Play sample">
+                <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              </button>
+            </td>
+            <td class="col-title-artist">
+              <span class="row-song-title">Night Drive</span>
+              <span class="row-artist-name">— Chromatics</span>
+              <span class="genre-tag-inline mono">Synthwave / Italo</span>
+            </td>
+            <td class="col-mono-meta mono">2007</td>
+            <td class="col-mono-meta mono">118</td>
+            <td class="col-mono-meta mono">A min</td>
+            <td class="col-match-pct mono">91.0%</td>
+            <td class="col-scrubber">
+              <div class="scrubber-bar-container">
+                <div class="scrubber-track">
+                  <div class="scrubber-fill" style="width: 65%;"></div>
+                </div>
+                <span class="scrubber-time mono">0:30</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Track 3 -->
+          <tr>
+            <td class="col-num mono">03</td>
+            <td class="col-play">
+              <button class="play-trigger-btn" aria-label="Play sample">
+                <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              </button>
+            </td>
+            <td class="col-title-artist">
+              <span class="row-song-title">Motion Picture Soundtrack</span>
+              <span class="row-artist-name">— Radiohead</span>
+              <span class="genre-tag-inline mono">Art Rock / Ambient</span>
+            </td>
+            <td class="col-mono-meta mono">2000</td>
+            <td class="col-mono-meta mono">72</td>
+            <td class="col-mono-meta mono">G maj</td>
+            <td class="col-match-pct mono">88.5%</td>
+            <td class="col-scrubber">
+              <div class="scrubber-bar-container">
+                <div class="scrubber-track">
+                  <div class="scrubber-fill" style="width: 20%;"></div>
+                </div>
+                <span class="scrubber-time mono">0:30</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 6. PLACED TRACKS ARCHIVE TABLE (Dense Data Ledger) -->
+    <section class="archive-section">
+      <div class="map-header-row">
+        <h3 class="section-title">Placed Tracks Archive</h3>
+        <span class="section-meta-mono mono">12 OF 12 MAPPED COORDINATES</span>
+      </div>
+
+      <table class="archive-table">
+        <thead>
+          <tr>
+            <th>IDX</th>
+            <th>TRACK</th>
+            <th>ARTIST</th>
+            <th>PERSONA CLUSTER</th>
+            <th>ENERGY</th>
+            <th>ACOUSTIC</th>
+            <th>COORDINATE</th>
+            <th>STATUS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Active Track -->
+          <tr class="active-track-row">
+            <td class="mono">01</td>
+            <td class="td-primary-song">Starboy</td>
+            <td>The Weeknd, Daft Punk</td>
+            <td>
+              <span class="persona-indicator">
+                <span class="indicator-pip" style="background: var(--c-midnight);"></span>
+                Midnight Transit
+              </span>
+            </td>
+            <td class="mono">0.82</td>
+            <td class="mono">0.14</td>
+            <td class="mono" style="color: var(--accent);">[+0.72, -0.38]</td>
+            <td class="mono" style="color: var(--accent);">ACTIVE PIN</td>
+          </tr>
+          <tr>
+            <td class="mono">02</td>
+            <td class="td-primary-song">Blinding Lights</td>
+            <td>The Weeknd</td>
+            <td>
+              <span class="persona-indicator">
+                <span class="indicator-pip" style="background: var(--c-midnight);"></span>
+                Midnight Transit
+              </span>
+            </td>
+            <td class="mono">0.73</td>
+            <td class="mono">0.00</td>
+            <td class="mono">[+0.65, -0.45]</td>
+            <td class="mono" style="color: var(--ink-dim);">PLACED</td>
+          </tr>
+          <tr>
+            <td class="mono">03</td>
+            <td class="td-primary-song">Nightcall</td>
+            <td>Kavinsky</td>
+            <td>
+              <span class="persona-indicator">
+                <span class="indicator-pip" style="background: var(--c-midnight);"></span>
+                Midnight Transit
+              </span>
+            </td>
+            <td class="mono">0.85</td>
+            <td class="mono">0.05</td>
+            <td class="mono">[+0.78, -0.41]</td>
+            <td class="mono" style="color: var(--ink-dim);">PLACED</td>
+          </tr>
+          <tr>
+            <td class="mono">04</td>
+            <td class="td-primary-song">Pink + White</td>
+            <td>Frank Ocean</td>
+            <td>
+              <span class="persona-indicator">
+                <span class="indicator-pip" style="background: var(--c-acoustic);"></span>
+                Looming Acoustic
+              </span>
+            </td>
+            <td class="mono">0.55</td>
+            <td class="mono">0.67</td>
+            <td class="mono">[-0.24, +0.62]</td>
+            <td class="mono" style="color: var(--ink-dim);">PLACED</td>
+          </tr>
+          <tr>
+            <td class="mono">05</td>
+            <td class="td-primary-song">Slow Burn</td>
+            <td>Kacey Musgraves</td>
+            <td>
+              <span class="persona-indicator">
+                <span class="indicator-pip" style="background: var(--c-acoustic);"></span>
+                Looming Acoustic
+              </span>
+            </td>
+            <td class="mono">0.42</td>
+            <td class="mono">0.79</td>
+            <td class="mono">[-0.41, +0.75]</td>
+            <td class="mono" style="color: var(--ink-dim);">PLACED</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+      <span>MUSIC TASTE PROFILE ENGINE • PRODUCTION RELEASE</span>
+      <span>BUILT ON SPOTIFY TRACK DATA • 127,900 BENCHMARK SONGS</span>
+      <span>VIEWPORT: 1400PX</span>
+    </footer>
+
+  </div>
+
+  <!-- SCRIPT: PRECISION AUDIO INSTRUMENT CANVAS & SPARK HISTOGRAMS -->
+  <script>
+    (function initAudioEngine() {
+      // 1. Populate Spark Histograms
+      function buildSpark(id, userPct, meanIdx) {
+        const wrap = document.getElementById(id);
+        if (!wrap) return;
+        const total = 40;
+        const target = Math.round(userPct * (total - 1));
+
+        for (let i = 0; i < total; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'spark-bar';
+          const dist = Math.abs(i - meanIdx);
+          const height = Math.max(8, Math.exp(-Math.pow(dist, 2) / 60) * 100);
+          bar.style.height = height + '%';
+          if (i === target) {
+            bar.classList.add('active-pin');
+          }
+          wrap.appendChild(bar);
+        }
+      }
+
+      buildSpark('sparkEnergy', 0.74, 20);
+      buildSpark('sparkAcoustic', 0.28, 14);
+
+      // 2. Instrument Scatterplot Canvas
+      const canvas = document.getElementById('audioInstrumentCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      function drawInstrument() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 2;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+
+        const w = rect.width;
+        const h = rect.height;
+
+        // Matte Inset Ground
+        ctx.fillStyle = '#0F0F12';
+        ctx.fillRect(0, 0, w, h);
+
+        // Thin Crosshair Gridlines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.lineWidth = 1;
+        const gridStep = 45;
+        for (let x = 0; x < w; x += gridStep) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0); ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+        for (let y = 0; y < h; y += gridStep) {
+          ctx.beginPath();
+          ctx.moveTo(0, y); ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        // Center Axis
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.beginPath();
+        ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
+        ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+        ctx.stroke();
+
+        // 7 Clusters with Muted Desaturated Tones
+        const clusters = [
+          { x: w * 0.70, y: h * 0.35, r: 62, col: '#E2FF3B', name: 'Midnight Transit' },
+          { x: w * 0.28, y: h * 0.70, r: 58, col: '#9CA894', name: 'Looming Acoustic' },
+          { x: w * 0.74, y: h * 0.72, r: 52, col: '#C7B493', name: 'Solar Pulse' },
+          { x: w * 0.30, y: h * 0.30, r: 54, col: '#7F9B96', name: 'Sunken Ambient' },
+          { x: w * 0.52, y: h * 0.55, r: 58, col: '#9E8FA8', name: 'Concrete Groove' },
+          { x: w * 0.20, y: h * 0.50, r: 46, col: '#868C98', name: 'Chamber Intimate' },
+          { x: w * 0.45, y: h * 0.20, r: 44, col: '#62646D', name: 'Dusk Drone' }
+        ];
+
+        // Subtle Cluster Boundary Rings
+        clusters.forEach(c => {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 4]);
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, c.r * 0.75, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        });
+
+        // Crisp Desaturated Background Points
+        clusters.forEach(c => {
+          const sampleCount = 90;
+          for (let i = 0; i < sampleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.pow(Math.random(), 1.6) * (c.r * 0.82);
+            const px = c.x + Math.cos(angle) * dist;
+            const py = c.y + Math.sin(angle) * dist;
+
+            ctx.fillStyle = c.col;
+            ctx.globalAlpha = 0.28;
+            ctx.beginPath();
+            ctx.arc(px, py, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+        ctx.globalAlpha = 1.0;
+
+        // Cluster Monospace Labels
+        ctx.font = '500 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        clusters.forEach(c => {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fillText(c.name.toUpperCase(), c.x, c.y - (c.r * 0.75) - 6);
+        });
+
+        // 12 User Tracks
+        const userTracks = [
+          { title: 'Starboy', x: w * 0.71, y: h * 0.33, active: true },
+          { title: 'Blinding Lights', x: w * 0.68, y: h * 0.37, active: false },
+          { title: 'Nightcall', x: w * 0.74, y: h * 0.31, active: false },
+          { title: 'Midnight City', x: w * 0.65, y: h * 0.39, active: false },
+          { title: 'Less I Know', x: w * 0.58, y: h * 0.51, active: false },
+          { title: 'Breathe', x: w * 0.50, y: h * 0.54, active: false },
+          { title: 'Pink + White', x: w * 0.30, y: h * 0.67, active: false },
+          { title: 'Slow Burn', x: w * 0.26, y: h * 0.72, active: false },
+          { title: 'Motion Picture', x: w * 0.32, y: h * 0.32, active: false },
+          { title: 'Sublunary', x: w * 0.34, y: h * 0.28, active: false },
+          { title: 'Heroes', x: w * 0.72, y: h * 0.70, active: false },
+          { title: 'A Forest', x: w * 0.43, y: h * 0.22, active: false }
+        ];
+
+        // Listening Centroid Contour
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(226, 255, 59, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.arc(w * 0.56, h * 0.44, 88, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Render User Tracks
+        userTracks.forEach(t => {
+          if (t.active) {
+            // High-Contrast Active Marker (#E2FF3B)
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 10, 0, Math.PI * 2);
+            ctx.strokeStyle = '#E2FF3B';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 16, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(226, 255, 59, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+          } else {
+            // Off-White Muted User Points
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#F4F3EF';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#0B0B0D';
+            ctx.fill();
+          }
+        });
+      }
+
+      window.addEventListener('resize', drawInstrument);
+      drawInstrument();
+    })();
+  </script>
+
+</body>
+</html>
