@@ -1,72 +1,107 @@
+"""
+backend/main.py: The API Gateway & Serving Layer
+==============================================================================
+This file connects your Machine Learning pipeline to the outside web.
+It is architected around the 4 Universal Pillars of production FastAPI services:
+
+  PILLAR 1: Preparation  ──► Load models & data into RAM once (Lifespan)
+  PILLAR 2: App Instance ──► Create central FastAPI app and attach metadata
+  PILLAR 3: Middleware   ──► Grant browser security permissions (CORS)
+  PILLAR 4: Routes       ──► Define URLs that validate input and call engine.py
+==============================================================================
+"""
+
 import os
 import json
 import joblib
-import numpy as np
 import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+# Data contracts (Pydantic schemas)
 from backend.schemas import (
     TrackSearchResult,
     TasteProfileRequest,
     TasteProfileResponse,
 )
 
+# Pure ML inference math (zero web code)
 from backend.engine import taste_profile
 
-# ---------------------------------------------------------------------------
-# GLOBAL IN-MEMORY MODEL ARTIFACT STORE
-# ---------------------------------------------------------------------------
-# In production ML, we never load models or heavy CSVs inside request handlers.
-# That would cause disk reads on every HTTP request, blowing latency up to 500ms+.
-# Instead, we load them ONCE into RAM at server startup (<1ms request latency).
-# ---------------------------------------------------------------------------
+
+# ==============================================================================
+# PILLAR 1: IN-MEMORY ARTIFACT STORE & LIFESPAN LOADER (Preparation)
+# ==============================================================================
+# In production ML, we NEVER load models or heavy CSVs inside route functions.
+# Reading disk on every HTTP request adds 300ms+ of lag and risks memory spikes.
+# Instead, we load models ONCE into RAM at boot so requests answer in < 5ms.
+# ==============================================================================
+
+# Global in-memory warehouse accessible by all route functions
+# Once populated during startup, every route function inside can instantly access
+# artifacts["data"] or artifacts["kmeans"] directly from RAM without reloading 
 artifacts = {}
 
-
-@asynccontextmanager
+@asynccontextmanager # used to split server execution into two distinct phases separated by the yield keyword
 async def lifespan(app: FastAPI):
     """
-    FastAPI Lifespan Context Manager.
-    Runs once when the server boots up, and cleans up when the server shuts down.
-    """
-    print("🚀 [Startup] Loading serialized ML models and dataset into RAM...")
+    Reads heavy models and data from disk ONCE at server startup and stores them
+    in the global `artifacts` dict, so routes can access them instantly from RAM
+    instead of repeatedly calling pd.read_csv() or joblib.load() on every request.
 
-    # Base paths relative to project root
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    Lifespan Context Manager: Controls the server's lifecycle.
+      - Code BEFORE `yield`: Executes ONCE at server boot (Startup).
+      - The `yield`: The server pauses here and answers user requests.
+      - Code AFTER `yield`: Executes ONCE when server shuts down (Teardown).
+    """
+
+    # Construct OS-independent paths relative to project root
+    # Creates robust full (absolute) paths dynamically at runtime by combining the relative pieces we have
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # returns the full path to the project's root folder (to construct full paths from relative pieces)
     data_path = os.path.join(base_dir, "data", "spotify_tracks_modeled.csv")
     models_dir = os.path.join(base_dir, "models")
 
-    # 1. Load the fully modeled 127,900-track dataset into memory
+    # Load the modeled 127,900-track dataset into RAM
     if not os.path.exists(data_path):
         raise FileNotFoundError(f"Modeled data not found at {data_path}. Run 04_ml_pipeline.ipynb first.")
-    artifacts["data"] = pd.read_csv(data_path)
-    print(f" Loaded dataset: {len(artifacts['data']):,} tracks")
+    
+    # instead of calling pd.read_csv every single time it's read once when the server starts and stored in a dict
+    artifacts["data"] = pd.read_csv(data_path) # store dataset to artifacts dict for easy access - lives in RAM 
 
-    # 2. Load metadata (persona names, features)
+    # Load persona metadata definitions
     meta_path = os.path.join(models_dir, "persona_metadata.json")
     if os.path.exists(meta_path):
         with open(meta_path, "r") as f:
             artifacts["metadata"] = json.load(f)
-        print(" Loaded persona metadata")
 
-    # 3. Load Scikit-Learn frozen models
+    # Load trained Scikit-Learn transformers and KMeans clusterer into RAM
     artifacts["kmeans"] = joblib.load(os.path.join(models_dir, "kmeans_model.joblib"))
     artifacts["power_transformer"] = joblib.load(os.path.join(models_dir, "power_transformer.joblib"))
     artifacts["pca_intensity"] = joblib.load(os.path.join(models_dir, "pca_intensity.joblib"))
     artifacts["pca_2d"] = joblib.load(os.path.join(models_dir, "pca_2d.joblib"))
-    print(" Loaded all 4 joblib model artifacts")
 
-    print(" System ready to serve predictions!")
-    yield
-    print("🛑 [Shutdown] Cleaning up resources...")
+
+    # ─── 2. THE SERVING PAUSE ─────────────────────────────────────────────────
+    yield  # The server stays awake here, processing incoming user requests!
+           # yield pauses the function and holds its state 
+           # When yield is hit, FastAPI knows startup preparation is complete 
+           # FastAPI opens port 8000 and starts accepting HTTP traffic 
+           # The lifespan function hangs in suspended animation at this exact 
+           # line for as long as the server runs 
+
+    # ─── 3. SHUTDOWN CLEANUP ──────────────────────────────────────────────────
+    # When the server has finished running (server is shutting down) the dict 
+    # is cleared (RAM is cleared) and the service ends 
     artifacts.clear()
 
 
-# ---------------------------------------------------------------------------
-# FASTAPI APP INITIALIZATION
-# ---------------------------------------------------------------------------
+# ==============================================================================
+# PILLAR 2: APPLICATION INSTANTIATION (The Central App Object)
+# ==============================================================================
+# Creates the central `app` object that manages routes, settings, and docs.
+# The `lifespan=lifespan` argument binds our Pillar 1 startup logic to this app.
+# ==============================================================================
 app = FastAPI(
     title="Spotify Taste Profile Engine API",
     description="Production ML API that clusters songs into 7 Sound Personas and computes listener taste diagnostics.",
@@ -74,97 +109,130 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ---------------------------------------------------------------------------
-# CORS (Cross-Origin Resource Sharing) MIDDLEWARE
-# ---------------------------------------------------------------------------
-# Crucial for Full-Stack ML: Allows your frontend (e.g. localhost:3000, 5173,
-# or your deployed web domain) to make fetch requests to this backend without
-# browser security policy blocking them.
-# ---------------------------------------------------------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for development
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+# ==============================================================================
+# PILLAR 3: CORS SECURITY MIDDLEWARE (Browser Access Handshake)
+# ==============================================================================
+# Web browsers enforce the 'Same-Origin Policy': they block frontends 
+# (e.g. localhost:3000 or vercel.app) from fetching data from backends on another port
+# (e.g. localhost:8000 or render.com) unless the API explicitly sends permission.
+# ==============================================================================
+app.add_middleware( # .add_middleware() adds functionality that intercepts/processes everything travelling between the outside world and your routes
+    CORSMiddleware,            # Intercepts every request to handle browser Cross-Origin security checks
+    allow_origins=["*"],       # Whitelist of allowed frontend domains ("*" allows all; in prod use ["https://your-site.vercel.app"])
+    allow_credentials=True,    # Allows frontend to pass cookies, authorization headers, or session tokens across origins
+    allow_methods=["*"],       # Allowed HTTP actions ("*" permits GET, POST, OPTIONS, PUT, DELETE, etc.)
+    allow_headers=["*"],       # Allowed HTTP headers sent by browser ("*" permits Content-Type, Authorization, etc.)
 )
 
 
-# ---------------------------------------------------------------------------
-# HEALTH CHECK
-# ---------------------------------------------------------------------------
-@app.get("/api/health", tags=["System"])
+# ==============================================================================
+# PILLAR 4: THE ROUTES / ENDPOINTS (The Doors to the Outside World)
+# ==============================================================================
+# Golden Rule: Keep routes thin. Route functions should only:
+#   1. Read pre-loaded data from `artifacts`.
+#   2. Validate inputs.
+#   3. Delegate heavy math to `engine.py`.
+#   4. Return the result.
+# ==============================================================================
+
+# ─── ROUTE 0: SYSTEM HEALTH CHECK ─────────────────────────────────────────────
+# Cloud hosts (Render, AWS, GCP) automatically ping this route every 10-30s
+# to verify that your service is healthy and hasn't crashed.
+# Checks the server is awake and that everything required is loaded in RAM
+
+# Whenever a client makes an HTTP GET request to the path /api/health, run the function 
+@app.get("/api/health", tags=["System"]) 
 def health_check():
-    """Confirms the API server and ML models are loaded and healthy."""
+    """Confirms the API server and ML models are loaded in RAM and healthy."""
     return {
         "status": "healthy",
-        "loaded_tracks": len(artifacts.get("data", [])),
-        "models_ready": "kmeans" in artifacts,
+        "loaded_tracks": len(artifacts.get("data", [])), # checks how many tracks are currently loaded in RAM
+        "models_ready": "kmeans" in artifacts, # returns True if the trained KMeans model is ready in RAM 
     }
 
 
-# ---------------------------------------------------------------------------
-# ENDPOINT 1: SONG AUTOCOMPLETE SEARCH
-# ---------------------------------------------------------------------------
-@app.get(
-    "/api/search",
-    response_model=list[TrackSearchResult],
-    tags=["Search"],
-    summary="Search tracks by title or artist",
-)
+# ─── ROUTE 1: AUTOCOMPLETE SONG SEARCH (HTTP GET) ─────────────────────────────
+# We use GET because the client is just LOOKING UP data with a URL query string.
+# A GET request carries its input in the URL (the query string), and has no body.
+# e.g. input from the client is carried in a portion of the url (the query string)
+
+# Triggered by: GET /api/search?q=queen&limit=10
+
+# Flow: user types "queen" in the textbox 
+#   -> frontend JS builds /api/search?q=queen&limit=10 
+#   -> FastAPI calls search_tracks(q="queen", limit=10)
+#   -> returned list is sent back as JSON and shown as dropdown results.
+#
+# q and limit are QUERY PARAMETERS (key=value pairs after the "?", split by "&").
+# FastAPI matches them BY NAME to the function arguments, converts them to the
+# type hint (str / int) and validates them. Bad input (missing q, limit=500)
+# gets a 422 before this code runs.
+
+# When a request is made to path /api/search run the function below 
+# response_model indicates what shape the returned data must have - should be a list with the TrackSearchResult format (output contract from schemas)
+# tags groups related endpoints into groups - e.g. tags=["Search"] puts /api/search in a "Search" folder 
+# summary is the title displayed next to the URL in the /docs page 
+@app.get("/api/search", response_model=list[TrackSearchResult], tags=["Search"], summary="Search tracks by title or artist",)
 def search_tracks(
-    q: str = Query(..., min_length=1, description="Search keyword for track name or artist"),
+    # Query(...) indicates to read the value from the URL's query string (the "?q=queen&limit=10" part, as key=value pairs) and validates it against the rules (min_length, ge/le).
+    q: str = Query(..., min_length=1, description="Search keyword for track name or artist"), # converts the query to a python string
     limit: int = Query(10, ge=1, le=50, description="Max number of results to return"),
 ):
     """
-    Lightning-fast autocomplete search against our 89.5k dataset.
+    Lightning-fast autocomplete search against our 128k in-memory dataset.
     Uses vectorized string matching across track_name and artists.
     """
-    data = artifacts["data"]
+
+    # obtains data and the keyword stripped 
+    data = artifacts["data"] # data is the df from the csv 
     keyword = q.strip().lower()
 
-    # Vectorized case-insensitive search across track name and artist
+    # Fast vectorized search in RAM (boolean masking) - either looking for matching track name or artist
+    # Returns sequence of T/F for every single track indicating if it matches
     mask = (
         data["track_name"].str.lower().str.contains(keyword, na=False)
         | data["artists"].str.lower().str.contains(keyword, na=False)
     )
 
-    # Sort matches by popularity so famous songs appear first
+    # Sort matches by popularity descending so famous songs show up first
+    # Indexes data using the boolean mask to return the matches and sorts them returning only "limit" number of matches
     matches = (
         data[mask]
         .sort_values(by="popularity", ascending=False)
         .head(limit)
     )
 
+    # Return only the 6 columns required by TrackSearchResult
+    # always return a dict so it can be rendered as json
     search_cols = ["track_id", "track_name", "artists", "album_name", "track_genre", "persona"]
     return matches[search_cols].to_dict(orient="records")
 
 
-# ---------------------------------------------------------------------------
-# ENDPOINT 2: TASTE PROFILE ENGINE
-# ---------------------------------------------------------------------------
-@app.post(
-    "/api/taste-profile",
-    response_model=TasteProfileResponse,
-    tags=["ML Inference"],
-    summary="Compute listener taste diagnostic from track IDs",
-)
-def get_taste_profile(request: TasteProfileRequest):
+# ─── ROUTE 2: TASTE PROFILE ML INFERENCE (HTTP POST) ──────────────────────────
+# We use POST because the client is SUBMITTING a structured JSON payload in the
+# HTTP request body.
+# - Input contract: `TasteProfileRequest` validates track_ids is a non-empty list.
+# - Output contract: `TasteProfileResponse` guarantees the 5 diagnostic metrics.
+@app.post("/api/taste-profile", response_model=TasteProfileResponse, tags=["ML Inference"], summary="Compute listener taste diagnostic from track IDs",)
+def get_taste_profile(request: TasteProfileRequest): 
+    # `request` is just the parameter name; `TasteProfileRequest` is its type/contract. 
+    # Because it's a Pydantic schema, FastAPI reads the JSON body, validates it against the schema, and passes in the finished object.
+    # What is passed is an object with the track_ids (instance of TasteProfileRequest class)
     """
     Production wrapper around our ML taste_profile() engine.
-    Receives selected track_ids, computes persona breakdown, Shannon entropy,
-    global percentiles, within-cluster recommendations, and 2D sound map points.
+    Receives selected track_ids, validates them, and delegates pure computation
+    to engine.py.
     """
+
     data = artifacts["data"]
-    track_ids = request.track_ids
+    track_ids = request.track_ids # pulls the list of ids passed from the input object (check schemas.py for the object's structure)
 
-    # Validate that at least one requested track exists in our dataset
+    # Defensive check: ensure at least one requested track exists in our dataset
     selected = data[data["track_id"].isin(track_ids)]
-    if selected.empty:
-        raise HTTPException(
-            status_code=404,
-            detail="None of the provided track IDs were found in the dataset.",
-        )
+    if selected.empty: # raise error if there are no matches (defensive check)
+        raise HTTPException(status_code=404, detail="None of the provided track IDs were found in the dataset.",)
 
-    # Delegate the mathematical taste profile computation to our ML engine
+    # Delegate the pure mathematical computation to backend/engine.py
+    # engine.py is imported which contains the KMeans Algorithm function required which is called upon and its output is returned
     return taste_profile(track_ids, data)
