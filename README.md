@@ -1,4 +1,4 @@
-# Spotify Taste Profile Engine
+# Music Taste Profile Engine
 ### *Unsupervised Music Clustering & Full-Stack Inference Pipeline*
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
