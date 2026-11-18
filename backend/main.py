@@ -4,7 +4,6 @@ import joblib
 import numpy as np
 import pandas as pd
 from contextlib import asynccontextmanager
-from scipy.stats import percentileofscore
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,6 +12,8 @@ from backend.schemas import (
     TasteProfileRequest,
     TasteProfileResponse,
 )
+
+from backend.engine import taste_profile
 
 # ---------------------------------------------------------------------------
 # GLOBAL IN-MEMORY MODEL ARTIFACT STORE
@@ -157,67 +158,13 @@ def get_taste_profile(request: TasteProfileRequest):
     data = artifacts["data"]
     track_ids = request.track_ids
 
-    # 1. Filter dataset for user's selected tracks
-    selected = data[data["track_id"].isin(track_ids)].copy()
-
+    # Validate that at least one requested track exists in our dataset
+    selected = data[data["track_id"].isin(track_ids)]
     if selected.empty:
         raise HTTPException(
             status_code=404,
             detail="None of the provided track IDs were found in the dataset.",
         )
 
-    # 2. Persona Breakdown - % Breakdown of each Cluster
-    breakdown = selected["persona"].value_counts(normalize=True).to_dict()
-
-    # 3. Diversity Score - Normalized Shannon Entropy
-    diversity_score = 0.0
-    for prob in breakdown.values():
-        if prob > 0:
-            diversity_score += (-prob) * np.log(prob)
-    diversity_score /= np.log(7)  # Normalize by log(7) (maximum possible entropy for 7 personas)
-
-    # 4. Global Percentile Comparison
-    percentiles = {}
-    compare_features = ["danceability", "energy", "valence", "acousticness"]
-    for feat in compare_features:
-        user_avg = selected[feat].mean()
-        percentiles[feat] = round(float(percentileofscore(data[feat], user_avg)), 1)
-
-    # 5. Recommendations - Top 3 within-cluster nearest neighbors
-    top_cluster = selected["cluster"].mode()[0]
-    top_cluster_features = selected[selected["cluster"] == top_cluster]
-    mean_point = (
-        top_cluster_features["pca_x"].mean(),
-        top_cluster_features["pca_y"].mean(),
-    )
-
-    # Filter other songs in same cluster not in user's selection
-    other_songs = data[
-        (data["cluster"] == top_cluster) & (~data["track_id"].isin(track_ids))
-    ].copy()
-
-    # Euclidean distance in 2D PCA space
-    other_songs["dist"] = (
-        (other_songs["pca_x"] - mean_point[0]) ** 2
-        + (other_songs["pca_y"] - mean_point[1]) ** 2
-    )
-
-    cols = ["track_id", "track_name", "artists", "album_name"]
-    suggested_songs = (
-        other_songs.sort_values(by="dist", ascending=True)[cols]
-        .head(3)
-        .to_dict(orient="records")
-    )
-
-    # 6. 2D Sound Map Coordinates for User's Songs
-    user_songs = selected[
-        ["track_id", "track_name", "artists", "pca_x", "pca_y", "persona"]
-    ].to_dict(orient="records")
-
-    return {
-        "persona_breakdown": breakdown,
-        "diversity_score": round(float(diversity_score), 2),
-        "percentiles": percentiles,
-        "recommendations": suggested_songs,
-        "user_songs": user_songs,
-    }
+    # Delegate the mathematical taste profile computation to our ML engine
+    return taste_profile(track_ids, data)
