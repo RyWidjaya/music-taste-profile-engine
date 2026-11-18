@@ -33,13 +33,13 @@
       --danger-subtle: rgba(240, 138, 138, 0.12);
 
       /* Persona Colors (Persona Metadata 0-6) */
-      --persona-0: #E58E7A; /* Raw Energy & High-Octane Rock */
-      --persona-1: #E6C07B; /* Rhythmic Flow & Hip-Hop Beats */
-      --persona-2: #7CC4F5; /* Upbeat Dance & Sunny Pop */
-      --persona-3: #9A8CF0; /* Alternative Edge & Dark Grunge */
-      --persona-4: #5FD0C4; /* Hypnotic Beats & Electronic Club */
-      --persona-5: #E88FB0; /* Chill Acoustic & Moody Ballads */
-      --persona-6: #8A98A8; /* Deep Ambient & Atmospheric Chill */
+      --persona-0: #E58E7A; /* Heavy & Live */
+      --persona-1: #E6C07B; /* Vocal & Rhythmic */
+      --persona-2: #7CC4F5; /* Bright Pop & Groove */
+      --persona-3: #9A8CF0; /* Driven Alt & Punk */
+      --persona-4: #5FD0C4; /* Synth & Club */
+      --persona-5: #E88FB0; /* Unplugged & Intimate */
+      --persona-6: #8A98A8; /* Ambient & Drone */
 
       --radius-panel: 12px;
       --radius-control: 8px;
@@ -1156,24 +1156,24 @@
 
     // 7 Canonical Personas and assigned CSS color tokens
     const PERSONA_COLORS = {
-      "Raw Energy & High-Octane Rock": "var(--persona-0)",
-      "Rhythmic Flow & Hip-Hop Beats": "var(--persona-1)",
-      "Upbeat Dance & Sunny Pop": "var(--persona-2)",
-      "Alternative Edge & Dark Grunge": "var(--persona-3)",
-      "Hypnotic Beats & Electronic Club": "var(--persona-4)",
-      "Chill Acoustic & Moody Ballads": "var(--persona-5)",
-      "Deep Ambient & Atmospheric Chill": "var(--persona-6)"
+      "Heavy & Live": "var(--persona-0)",
+      "Vocal & Rhythmic": "var(--persona-1)",
+      "Bright Pop & Groove": "var(--persona-2)",
+      "Driven Alt & Punk": "var(--persona-3)",
+      "Synth & Club": "var(--persona-4)",
+      "Unplugged & Intimate": "var(--persona-5)",
+      "Ambient & Drone": "var(--persona-6)"
     };
 
     // Concrete hex values for Canvas drawing
     const PERSONA_HEX = {
-      "Raw Energy & High-Octane Rock": "#E58E7A",
-      "Rhythmic Flow & Hip-Hop Beats": "#E6C07B",
-      "Upbeat Dance & Sunny Pop": "#7CC4F5",
-      "Alternative Edge & Dark Grunge": "#9A8CF0",
-      "Hypnotic Beats & Electronic Club": "#5FD0C4",
-      "Chill Acoustic & Moody Ballads": "#E88FB0",
-      "Deep Ambient & Atmospheric Chill": "#8A98A8"
+      "Heavy & Live": "#E58E7A",
+      "Vocal & Rhythmic": "#E6C07B",
+      "Bright Pop & Groove": "#7CC4F5",
+      "Driven Alt & Punk": "#9A8CF0",
+      "Synth & Club": "#5FD0C4",
+      "Unplugged & Intimate": "#E88FB0",
+      "Ambient & Drone": "#8A98A8"
     };
 
     // Central State
@@ -1304,21 +1304,21 @@
         })()
       },
       searchCatalog: [
-        { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", album_name: "A Night at the Opera", track_genre: "classic rock", persona: "Alternative Edge & Dark Grunge" },
-        { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", album_name: "Jazz", track_genre: "glam rock", persona: "Upbeat Dance & Sunny Pop" },
-        { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", album_name: "DAMN.", track_genre: "hip-hop", persona: "Rhythmic Flow & Hip-Hop Beats" },
-        { track_id: "mock_4", track_name: "One More Time", artists: "Daft Punk", album_name: "Discovery", track_genre: "electronic", persona: "Hypnotic Beats & Electronic Club" },
-        { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", album_name: "WHEN WE ALL FALL ASLEEP", track_genre: "electropop", persona: "Upbeat Dance & Sunny Pop" },
-        { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", album_name: "For Emma, Forever Ago", track_genre: "indie folk", persona: "Chill Acoustic & Moody Ballads" },
-        { track_id: "mock_7", track_name: "Weightless", artists: "Marconi Union", album_name: "Weightless", track_genre: "ambient", persona: "Deep Ambient & Atmospheric Chill" },
-        { track_id: "mock_8", track_name: "Smells Like Teen Spirit", artists: "Nirvana", album_name: "Nevermind", track_genre: "grunge", persona: "Raw Energy & High-Octane Rock" }
+        { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", album_name: "A Night at the Opera", track_genre: "classic rock", persona: "Driven Alt & Punk" },
+        { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", album_name: "Jazz", track_genre: "glam rock", persona: "Bright Pop & Groove" },
+        { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", album_name: "DAMN.", track_genre: "hip-hop", persona: "Vocal & Rhythmic" },
+        { track_id: "mock_4", track_name: "One More Time", artists: "Daft Punk", album_name: "Discovery", track_genre: "electronic", persona: "Synth & Club" },
+        { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", album_name: "WHEN WE ALL FALL ASLEEP", track_genre: "electropop", persona: "Bright Pop & Groove" },
+        { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", album_name: "For Emma, Forever Ago", track_genre: "indie folk", persona: "Unplugged & Intimate" },
+        { track_id: "mock_7", track_name: "Weightless", artists: "Marconi Union", album_name: "Weightless", track_genre: "ambient", persona: "Ambient & Drone" },
+        { track_id: "mock_8", track_name: "Smells Like Teen Spirit", artists: "Nirvana", album_name: "Nevermind", track_genre: "grunge", persona: "Heavy & Live" }
       ],
       tasteProfile: {
         persona_breakdown: {
-          "Upbeat Dance & Sunny Pop": 0.40,
-          "Rhythmic Flow & Hip-Hop Beats": 0.30,
-          "Alternative Edge & Dark Grunge": 0.20,
-          "Chill Acoustic & Moody Ballads": 0.10
+          "Bright Pop & Groove": 0.40,
+          "Vocal & Rhythmic": 0.30,
+          "Driven Alt & Punk": 0.20,
+          "Unplugged & Intimate": 0.10
         },
         diversity_score: 0.58,
         percentiles: {
@@ -1333,11 +1333,11 @@
           { track_id: "rec_3", track_name: "Get Lucky", artists: "Daft Punk ft. Pharrell", album_name: "Random Access Memories" }
         ],
         user_songs: [
-          { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", pca_x: 2.1, pca_y: 1.4, persona: "Upbeat Dance & Sunny Pop" },
-          { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", pca_x: -1.8, pca_y: -0.5, persona: "Rhythmic Flow & Hip-Hop Beats" },
-          { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", pca_x: 3.4, pca_y: 0.8, persona: "Upbeat Dance & Sunny Pop" },
-          { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", pca_x: -0.9, pca_y: 3.1, persona: "Alternative Edge & Dark Grunge" },
-          { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", pca_x: -4.2, pca_y: -2.3, persona: "Chill Acoustic & Moody Ballads" }
+          { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", pca_x: 2.1, pca_y: 1.4, persona: "Bright Pop & Groove" },
+          { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", pca_x: -1.8, pca_y: -0.5, persona: "Vocal & Rhythmic" },
+          { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", pca_x: 3.4, pca_y: 0.8, persona: "Bright Pop & Groove" },
+          { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", pca_x: -0.9, pca_y: 3.1, persona: "Driven Alt & Punk" },
+          { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", pca_x: -4.2, pca_y: -2.3, persona: "Unplugged & Intimate" }
         ]
       }
     };
