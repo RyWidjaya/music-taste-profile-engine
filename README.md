@@ -101,10 +101,10 @@ By analyzing standardized Z-scores across audio features, corroborating with top
 | Cluster | Sound Persona | Distinguishing Acoustic Signature | Common Genres / Representative Tracks |
 | :---: | :--- | :--- | :--- |
 | **0** | **Heavy & Live** | Ultra-high intensity (+1.55), High liveness (+0.70), High tempo (+0.57) | Metalcore, Heavy Metal, Hard Rock, Punk |
-| **1** | **Vocal & Rhythmic** | High speechiness (+1.52), High danceability (+0.83) | Hip-Hop, Rap, Dancehall, Trap |
-| **2** | **Bright Pop & Groove** | High valence (+0.83), High danceability (+0.69), High intensity (+0.69) | Dance-Pop, Disco, Salsa, Forro, Upbeat K-Pop |
-| **3** | **Driven Alt & Punk** | High tempo (+0.80), Low intensity (-0.98), Low speechiness (-0.66) | Alternative, Indie Rock, Dark Wave, Cantopop |
-| **4** | **Synth & Club** | Ultra-high instrumentalness (+1.87), High intensity (+0.86) | Techno, House, EDM, Breakbeat, Trance |
+| **1** | **Driven Alt & Punk** | High tempo (+0.80), Low intensity (-0.98), Low speechiness (-0.66) | Alternative, Indie Rock, Dark Wave, Cantopop |
+| **2** | **Synth & Club** | Ultra-high instrumentalness (+1.87), High intensity (+0.86) | Techno, House, EDM, Breakbeat, Trance |
+| **3** | **Vocal & Rhythmic** | High speechiness (+1.52), High danceability (+0.83) | Hip-Hop, Rap, Dancehall, Trap |
+| **4** | **Bright Pop & Groove** | High valence (+0.83), High danceability (+0.69), High intensity (+0.69) | Dance-Pop, Disco, Salsa, Forro, Upbeat K-Pop |
 | **5** | **Unplugged & Intimate** | Low intensity (-1.31), Low tempo (-1.02), Low speechiness (-0.65) | Acoustic, Folk, Singer-Songwriter, Romance, Ballads |
 | **6** | **Ambient & Drone** | Ultra-low intensity (-2.70), High instrumentalness (+1.90), Low valence (-1.09) | Ambient, Classical, Sleep, New-Age, Meditation |
 

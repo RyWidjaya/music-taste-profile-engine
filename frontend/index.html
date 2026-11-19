@@ -2,2118 +2,2082 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Music Taste Profile Engine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0C1219">
+  <meta name="description" content="Pick 10 to 20 songs and see which of 7 sound personas they fall into, mapped against 127,900 Spotify tracks.">
+  <title>What's My Sound?</title>
+  <link rel="icon" href="data:,">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    // TEMPORARY dev switcher: ?palette=ink|petrol|cobalt (default ink). Runs before
+    // first paint so there's no flash. Remove once a palette is chosen.
+    (function () {
+      var p = new URLSearchParams(location.search).get("palette");
+      document.documentElement.dataset.palette = (p === "petrol" || p === "cobalt") ? p : "ink";
+    })();
+  </script>
 
   <style>
     /* ==========================================================================
-       1. DESIGN TOKENS (Strict CSS Variables)
+       Persona colours, shared by all palettes. JS reads these for the canvas,
+       so this is the single source. Validated with the dataviz palette checker
+       on all nine ground/raised/highest surfaces, all pairs (they meet on the
+       scatter): colour-blind ΔE >= 8.0, normal-vision ΔE >= 15.4, chroma >= 0.10,
+       >= 3:1 on every surface, >= 15 ΔE from every palette's accent.
+       Deliberately lighter than the dataviz default dark band (L 0.48-0.67):
+       the brief asks for luminous colours on these dark grounds.
        ========================================================================== */
     :root {
-      --bg-base: #18242C;
-      --bg-sidebar: #131D24;
-      --surface: #1F2D38;
-      --surface-raised: #263140;
-      --border: rgba(255, 255, 255, 0.06);
-      --border-strong: rgba(255, 255, 255, 0.12);
-
-      --text-1: #E8EEF3;
-      --text-2: #9AA7B3;
-      --text-3: #66737F;
-
-      --accent: #7CC4F5;
-      --accent-hover: #96D1F8;
-      --accent-subtle: rgba(124, 196, 245, 0.12);
-      --on-accent: #0E1A22;
-
-      --danger: #F08A8A;
-      --danger-subtle: rgba(240, 138, 138, 0.12);
-
-      /* Persona Colors (Persona Metadata 0-6) */
-      --persona-0: #E58E7A; /* Heavy & Live */
-      --persona-1: #E6C07B; /* Vocal & Rhythmic */
-      --persona-2: #7CC4F5; /* Bright Pop & Groove */
-      --persona-3: #9A8CF0; /* Driven Alt & Punk */
-      --persona-4: #5FD0C4; /* Synth & Club */
-      --persona-5: #E88FB0; /* Unplugged & Intimate */
-      --persona-6: #8A98A8; /* Ambient & Drone */
-
-      --radius-panel: 12px;
-      --radius-control: 8px;
-      --radius-dot: 999px;
-
-      --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --persona-heavy-live: #EA6C5A;
+      --persona-bright-pop: #F6C343;
+      --persona-vocal-rhythmic: #F8A9C9;
+      --persona-synth-club: #8398FE;
+      --persona-driven-alt: #DC6ED0;
+      --persona-unplugged: #7DF29C;
+      --persona-ambient: #42B194;
     }
 
-    /* Reset & Base */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    /* ==========================================================================
+       Palettes. Elevation is tone steps (ground -> raised -> highest), never
+       shadows or glows. Every text/surface pair passes WCAG AA; the muted tone
+       was lifted from the brief's starting value so it clears 4.5:1 on "highest".
+       --accent is the focus ring and active-state marker; --btn-* is the one
+       primary button. Nothing else uses them.
+       ========================================================================== */
+
+    /* ink: quiet blue-tinted charcoal, muted cornflower accent */
+    :root, [data-palette="ink"] {
+      --bg: #0C1219;
+      --raised: #131B25;
+      --highest: #1B2531;
+      --line: #263241;
+      --text-1: #E6EBF2;      /* 12.9-15.7:1 */
+      --text-2: #9AA6B5;      /*  6.3-7.6:1 */
+      --text-3: #828E9F;      /*  4.7-5.7:1 */
+      --accent: #7FA8E0;
+      --btn-bg: #7FA8E0;
+      --btn-bg-hover: #94B6E6;
+      --btn-fg: #0C1219;      /*  7.7:1 */
+      --danger: #FF8A80;
+      --point-ring: #F2F5FA;
+    }
+    /* A brighter indigo sits within 10 ΔE of the cornflower accent, so in ink
+       Synth & Club keeps its earlier lightness (15.1 ΔE from the accent). */
+    [data-palette="ink"] { --persona-synth-club: #6F73F5; }
+
+    /* petrol: deep blue-green, near-white primary */
+    [data-palette="petrol"] {
+      --bg: #0A1518;
+      --raised: #101F24;
+      --highest: #17292F;
+      --line: #223840;
+      --text-1: #E4EEF0;      /* 12.8-15.7:1 */
+      --text-2: #98ADB3;      /*  6.4-7.9:1 */
+      --text-3: #7E9499;      /*  4.7-5.8:1 */
+      --accent: #E4EEF0;
+      --btn-bg: #E4EEF0;
+      --btn-bg-hover: #FFFFFF;
+      --btn-fg: #0A1518;      /* 15.7:1 */
+      --danger: #FF8A80;
+      --point-ring: #F2F7F8;
     }
 
+    /* cobalt: richer, bolder blue, near-white primary */
+    [data-palette="cobalt"] {
+      --bg: #0A1433;
+      --raised: #101D40;
+      --highest: #172856;
+      --line: #243568;
+      --text-1: #EAF0FF;      /* 12.5-15.9:1 */
+      --text-2: #A9B6DB;      /*  7.1-9.0:1 */
+      --text-3: #8692BA;      /*  4.6-5.9:1 */
+      --accent: #EAF0FF;
+      --btn-bg: #EAF0FF;
+      --btn-bg-hover: #FFFFFF;
+      --btn-fg: #0A1433;      /* 15.9:1 */
+      --danger: #FF8A80;
+      --point-ring: #F4F7FF;
+    }
+
+    /* Type, shape, motion */
+    :root {
+      --font: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      /* Scale: 12 / 13 / 14 / 16 / 20 / 60. The headline is the only large text;
+         JS steps it down (to a 34px floor) if a long persona name would need a third line. */
+      --fs-label: 12px;
+      --fs-meta: 13px;
+      --fs-body: 14px;
+      --fs-title: 16px;
+      --fs-lg: 20px;
+      --fs-headline: clamp(40px, 3.4vw + 12px, 60px);
+
+      --radius: 8px;
+      --radius-sm: 6px;
+
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --dur-fast: 150ms;
+      --dur: 200ms;
+      --dur-reveal: 400ms;
+
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
-      background-color: var(--bg-base);
+      margin: 0;
+      background: var(--bg);
       color: var(--text-1);
-      font-family: var(--font-family);
-      font-size: 14px;
+      font-family: var(--font);
+      font-size: var(--fs-body);
       line-height: 1.5;
+      font-variant-numeric: tabular-nums;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      min-height: 100vh;
-      overflow-x: hidden;
     }
+    h1, h2, h3, p, ul, ol, figure { margin: 0; }
+    ul, ol { padding: 0; list-style: none; }
+    button, input { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; }
+    code { font-size: 0.92em; color: var(--text-2); }
 
-    .tabular-nums {
-      font-variant-numeric: tabular-nums;
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 
-    /* Focus accessibility */
-    button:focus-visible, input:focus-visible, a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+    * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--line); border: 3px solid var(--bg); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+    ::-webkit-scrollbar-corner { background: transparent; }
+
+    .skip {
+      position: absolute; left: 12px; top: -56px; z-index: 100;
+      display: inline-flex; align-items: center; min-height: 40px;
+      background: var(--highest); color: var(--text-1);
+      padding: 0 12px; border-radius: var(--radius-sm);
+    }
+    .skip:focus { top: 12px; }
+
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--c, var(--text-3));
+      flex-shrink: 0;
     }
 
     /* ==========================================================================
-       2. APP SHELL LAYOUT
+       Shell
        ========================================================================== */
-    .app-shell {
-      display: flex;
-      min-height: 100vh;
-    }
+    .app { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100vh; }
 
-    /* Sidebar */
-    .sidebar {
-      width: 280px;
-      flex-shrink: 0;
-      background-color: var(--bg-sidebar);
-      border-right: 1px solid var(--border);
-      padding: 24px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      position: sticky;
-      top: 0;
+    /* ---------- Sidebar ---------- */
+    .rail {
+      position: sticky; top: 0;
       height: 100vh;
-      overflow-y: auto;
+      display: flex; flex-direction: column;
+      gap: 24px;
+      padding: 28px 20px 20px;
+      border-right: 1px solid var(--line);
     }
+    .brand { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; }
+    .label { font-size: var(--fs-meta); font-weight: 500; color: var(--text-2); }
 
-    .brand-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .search { position: relative; display: flex; flex-direction: column; gap: 8px; }
+    .search-field { position: relative; }
+    .search-field svg {
+      position: absolute; left: 12px; top: 50%; translate: 0 -50%;
+      width: 16px; height: 16px; color: var(--text-3); pointer-events: none;
     }
-
-    .brand-logo {
-      width: 22px;
-      height: 22px;
-      color: var(--accent);
-      flex-shrink: 0;
-    }
-
-    .brand-title {
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--text-1);
-    }
-
-    /* Autocomplete search */
-    .search-container {
-      position: relative;
-    }
-
-    .search-input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 12px;
-      width: 16px;
-      height: 16px;
-      color: var(--text-3);
-      pointer-events: none;
-    }
-
     .search-input {
-      width: 100%;
-      height: 38px;
-      padding: 8px 12px 8px 36px;
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-control);
-      color: var(--text-1);
-      font-family: inherit;
-      font-size: 13px;
-      transition: border-color 150ms ease-out;
+      width: 100%; height: 40px;
+      padding: 0 12px 0 36px;
+      background: var(--raised);
+      border: 0;
+      border-radius: var(--radius-sm);
+      font-size: var(--fs-body);
+      transition: background-color var(--dur-fast) ease;
     }
+    .search-input::placeholder { color: var(--text-3); }
+    .search-input:focus { background: var(--highest); }
 
-    .search-input::placeholder {
-      color: var(--text-3);
-    }
-
-    .search-input:focus {
-      border-color: var(--accent);
-      background-color: var(--surface-raised);
-    }
-
-    .search-dropdown {
-      position: absolute;
-      top: 44px;
-      left: 0;
-      right: 0;
-      background-color: var(--surface-raised);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-control);
-      max-height: 280px;
+    /* Opens without animation: it's triggered by typing, and keyboard-initiated
+       UI should respond instantly. */
+    .search-pop {
+      position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+      z-index: 30;
+      background: var(--highest);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 16px 40px rgba(2, 6, 16, 0.6);
+      max-height: 360px;
       overflow-y: auto;
-      z-index: 50;
-      display: none;
+      overscroll-behavior: contain;
     }
-
-    .search-dropdown.open {
-      display: block;
-    }
-
-    .search-result-item {
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .search-msg { padding: 12px; font-size: var(--fs-meta); color: var(--text-2); }
+    .search-msg strong { color: var(--text-1); font-weight: 500; }
+    .option {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: 10px;
+      min-height: 52px;
+      padding: 8px 12px;
       cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      transition: background-color 150ms ease-out;
     }
-
-    .search-result-item:last-child {
-      border-bottom: none;
+    .option[aria-selected="true"] { background: var(--line); box-shadow: inset 2px 0 0 var(--accent); }
+    @media (hover: hover) and (pointer: fine) {
+      .option:hover { background: var(--line); }
     }
+    .option[aria-disabled="true"] { cursor: default; }
+    .option[aria-disabled="true"] .option-name { color: var(--text-2); }
+    .option-text { min-width: 0; display: flex; flex-direction: column; }
+    .option-name, .option-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .option-name { font-size: var(--fs-meta); font-weight: 500; }
+    .option-meta { font-size: var(--fs-meta); color: var(--text-2); }
+    .option-tag { font-size: var(--fs-meta); color: var(--text-3); }
 
-    .search-result-item:hover, .search-result-item.selected {
-      background-color: var(--surface);
-    }
-
-    .search-result-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-1);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .search-result-meta {
-      font-size: 11px;
-      color: var(--text-3);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .search-empty {
-      padding: 14px 12px;
-      font-size: 12px;
-      color: var(--text-3);
-      text-align: center;
-    }
-
-    /* Selected tracks list */
-    .tracks-section {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      gap: 12px;
-    }
-
-    .section-label-row {
-      display: flex;
+    .songs { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
+    .songs-head { display: flex; align-items: baseline; justify-content: space-between; }
+    .songs-head .count { font-size: var(--fs-meta); color: var(--text-3); }
+    .hint { font-size: var(--fs-meta); color: var(--text-3); }
+    .hint:empty { display: none; }
+    .song-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+    .song-empty { font-size: var(--fs-meta); color: var(--text-3); padding: 20px 0; }
+    .song {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr) 40px;
       align-items: center;
-      justify-content: space-between;
+      column-gap: 10px;
+      padding: 2px 0 2px 6px;
+      margin: 0 -6px;
+      border-radius: var(--radius-sm);
+      transition: background-color var(--dur-fast) ease;
     }
-
-    .section-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-2);
+    .song + .song { margin-top: 2px; }
+    .song .art { width: 32px; height: 32px; border-radius: 3px; }
+    .song .icon-btn { width: 40px; height: 40px; }
+    .song.is-linked { background: var(--raised); box-shadow: inset 2px 0 0 var(--accent); }
+    @media (hover: hover) and (pointer: fine) {
+      .song:hover { background: var(--raised); }
+      .song .icon-btn { opacity: 0.5; transition: opacity var(--dur-fast) ease, color var(--dur-fast) ease, background-color var(--dur-fast) ease; }
+      .song:hover .icon-btn, .song:focus-within .icon-btn { opacity: 1; }
     }
+    .song-text { min-width: 0; display: flex; flex-direction: column; }
+    .song-name, .song-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-name { font-size: var(--fs-meta); font-weight: 500; }
+    .song-artist { font-size: var(--fs-meta); color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+    .song-artist .dot { width: 6px; height: 6px; }
 
-    .track-count-badge {
-      font-size: 11px;
-      color: var(--text-3);
-    }
-
-    .selected-tracks-list {
-      list-style: none;
-      overflow-y: auto;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding-right: 2px;
-    }
-
-    .empty-tracks-placeholder {
-      font-size: 12px;
-      color: var(--text-3);
-      padding: 24px 8px;
-      text-align: center;
-      line-height: 1.6;
-    }
-
-    .selected-track-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-control);
-      font-size: 12px;
+    .art {
       position: relative;
-      transition: background-color 150ms ease-out;
-    }
-
-    .selected-track-item:hover {
-      background-color: var(--surface-raised);
-    }
-
-    .track-persona-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: var(--radius-dot);
+      width: 40px; height: 40px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--c, var(--text-3)) 32%, var(--raised));
       flex-shrink: 0;
     }
-
-    .selected-track-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
-    .selected-track-name {
-      font-weight: 500;
-      color: var(--text-1);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .selected-track-artist {
-      font-size: 11px;
-      color: var(--text-3);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .remove-track-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-3);
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0.6;
-      transition: opacity 150ms ease-out, color 150ms ease-out;
-    }
-
-    .selected-track-item:hover .remove-track-btn {
-      opacity: 1;
-    }
-
-    .remove-track-btn:hover {
-      color: var(--danger);
-    }
-
-    /* Sidebar actions */
-    .sidebar-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: auto;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-    }
-
-    .primary-btn {
-      width: 100%;
-      height: 40px;
-      background-color: var(--accent);
-      color: var(--on-accent);
-      border: none;
-      border-radius: var(--radius-control);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 150ms ease-out;
-    }
-
-    .primary-btn:hover:not(:disabled) {
-      background-color: var(--accent-hover);
-    }
-
-    .primary-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .text-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-3);
-      font-size: 12px;
-      cursor: pointer;
-      padding: 6px;
-      text-align: center;
-      transition: color 150ms ease-out;
-    }
-
-    .text-btn:hover:not(:disabled) {
-      color: var(--text-2);
-    }
-
-    .text-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    /* ==========================================================================
-       3. MAIN CONTENT AREA
-       ========================================================================== */
-    .main-content {
-      flex: 1;
-      max-width: 1240px;
-      padding: 32px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    /* Page Header */
-    .page-header {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .page-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text-1);
-      letter-spacing: -0.01em;
-    }
-
-    .page-subtitle {
-      font-size: 13px;
-      color: var(--text-2);
-    }
-
-    /* Inline Alert / Error Notice */
-    .status-banner {
-      display: none;
-      padding: 12px 16px;
-      border-radius: var(--radius-control);
-      font-size: 13px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .status-banner.error {
-      display: flex;
-      background-color: var(--danger-subtle);
-      border: 1px solid var(--danger);
-      color: var(--text-1);
-    }
-
-    .banner-retry-btn {
-      background: transparent;
-      border: 1px solid var(--danger);
-      color: var(--text-1);
-      border-radius: 4px;
-      padding: 4px 10px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-
-    .banner-retry-btn:hover {
-      background-color: rgba(240, 138, 138, 0.2);
-    }
-
-    /* Panels General */
-    .panel {
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-panel);
-      padding: 20px 24px;
-      position: relative;
-    }
-
-    .panel-header {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-bottom: 16px;
-    }
-
-    .panel-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-1);
-    }
-
-    .panel-caption {
-      font-size: 12px;
-      color: var(--text-3);
-    }
-
-    /* ─── SUMMARY ROW ─── */
-    .summary-panel {
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .summary-cell {
-      padding: 20px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .summary-cell:not(:last-child) {
-      border-right: 1px solid var(--border);
-    }
-
-    .summary-label {
-      font-size: 12px;
-      color: var(--text-3);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .info-tooltip-trigger {
-      cursor: help;
-      display: inline-flex;
-      align-items: center;
-      color: var(--text-3);
-      position: relative;
-    }
-
-    .info-tooltip-trigger:hover {
-      color: var(--text-2);
-    }
-
-    .tooltip-box {
-      visibility: hidden;
+    .art img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
       opacity: 0;
-      width: 200px;
-      background-color: var(--surface-raised);
-      color: var(--text-2);
-      font-size: 11px;
-      text-align: left;
-      border-radius: 6px;
-      padding: 8px 10px;
-      border: 1px solid var(--border-strong);
-      position: absolute;
-      z-index: 20;
-      bottom: 130%;
-      left: 50%;
-      transform: translateX(-50%);
-      transition: opacity 150ms ease-out;
-      pointer-events: none;
-      line-height: 1.4;
+      transition: opacity var(--dur) ease;
     }
+    .art.has-art img { opacity: 1; }
 
-    .info-tooltip-trigger:hover .tooltip-box {
-      visibility: visible;
-      opacity: 1;
-    }
-
-    .summary-value-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .summary-value-lg {
-      font-size: 32px;
-      font-weight: 600;
-      line-height: 1.1;
-      color: var(--text-1);
-    }
-
-    .summary-persona-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-1);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 35px;
-    }
-
-    .summary-subtext {
-      font-size: 12px;
-      color: var(--text-2);
-    }
-
-    .summary-low-sample {
-      font-size: 11px;
+    .icon-btn {
+      display: grid; place-items: center;
+      width: 36px; height: 36px;
+      background: transparent; border: 0;
+      border-radius: var(--radius-sm);
       color: var(--text-3);
-      margin-left: 6px;
+      transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+    }
+    .icon-btn svg { width: 16px; height: 16px; }
+    @media (hover: hover) and (pointer: fine) {
+      .icon-btn:hover { color: var(--text-1); background: var(--line); }
     }
 
-    /* ─── CENTRE ROW ─── */
-    .centre-row {
+    .rail-actions { display: flex; flex-direction: column; gap: 4px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .bar-count { display: none; }
+    .rail-actions .btn-text { order: 2; }
+    .btn-primary {
+      height: 40px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--btn-bg);
+      color: var(--btn-fg);
+      font-size: 14px;
+      font-weight: 500;
+      transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, transform 160ms var(--ease-out);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-primary:hover:not(:disabled) { background: var(--btn-bg-hover); }
+    }
+    .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+    .btn-primary:disabled { background: var(--highest); color: var(--text-3); }
+    .btn-primary[aria-busy="true"] { background: var(--highest); color: var(--text-2); cursor: progress; }
+
+    .btn-text {
+      min-height: 40px;
+      background: transparent; border: 0;
+      border-radius: var(--radius-sm);
+      font-size: var(--fs-meta);
+      color: var(--text-2);
+      transition: color var(--dur-fast) ease;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-text:hover:not(:disabled) { color: var(--text-1); }
+    }
+    .btn-text:disabled { opacity: 0.4; }
+
+    .btn-quiet {
+      min-height: 40px;
+      padding: 0 16px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      font-size: var(--fs-meta);
+      font-weight: 500;
+      transition: border-color var(--dur-fast) ease, transform 160ms var(--ease-out);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-quiet:hover { border-color: var(--text-3); }
+    }
+    .btn-quiet:active { transform: scale(0.97); }
+
+    /* ---------- Main ---------- */
+    main { padding: 48px clamp(20px, 4vw, 56px) 72px; max-width: 1280px; width: 100%; }
+    main:focus { outline: none; }
+
+    /* ---------- Hero: headline + one muted line ---------- */
+    .hero { min-height: 96px; }
+    .headline {
+      font-size: var(--fs-headline);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.035em;
+      text-wrap: balance;
+    }
+    .headline .nowrap { white-space: nowrap; }
+    .lede { margin-top: 14px; font-size: var(--fs-body); color: var(--text-2); max-width: 70ch; }
+    .reveal { animation: reveal 280ms var(--ease-out) both; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(6px); } }
+    @keyframes fade { from { opacity: 0; } }
+
+    .meter { position: relative; height: 14px; }
+    .meter-track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; background: var(--line); border-radius: 1px; }
+    .meter-tick { position: absolute; top: 3px; width: 1px; height: 8px; background: var(--text-3); }
+    .meter-pos { position: absolute; top: 0; bottom: 0; left: var(--x); width: 0; pointer-events: none; }
+    .meter-mark {
+      position: absolute; left: -6px; top: 1px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--text-1);
+      box-shadow: 0 0 0 3px var(--ring-bg, var(--bg));
+    }
+    /* Only on a fresh result, never when the page re-renders for a song edit */
+    .is-fresh .meter-mark { animation: mark-in 240ms var(--ease-out) var(--delay, 140ms) both; }
+    @keyframes mark-in { from { opacity: 0; transform: scale(0.6); } }
+
+    .tip-btn {
+      display: inline-grid; place-items: center;
+      min-width: 32px; min-height: 32px; margin: -4px 0;
+      padding: 0;
+      background: transparent; border: 0;
+      color: var(--text-3);
+      vertical-align: middle;
+      transition: color var(--dur-fast) ease;
+    }
+    .tip-btn svg { width: 14px; height: 14px; }
+    .tip-btn.as-text { padding: 0 4px; font-size: var(--fs-meta); text-decoration: underline dotted; text-underline-offset: 3px; }
+    @media (hover: hover) and (pointer: fine) {
+      .tip-btn:hover { color: var(--text-1); }
+    }
+
+    .error-detail { display: flex; align-items: baseline; gap: 10px; }
+    .error-detail::before { content: ""; flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); translate: 0 -1px; }
+    .hero .btn-quiet { margin-top: 16px; }
+
+    /* ---------- Stage: one raised surface, map 62% | breakdown 38% ----------
+       No fixed heights: the grid row sizes to the taller half, both halves
+       stretch to it, and the map's plot flexes to fill the space. */
+    .stage {
       display: grid;
-      grid-template-columns: 62% calc(38% - 16px);
-      gap: 16px;
-      min-height: 440px;
+      grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
+      align-items: stretch;
+      margin-top: 36px;
+      background: var(--raised);
+      border-radius: var(--radius);
+      --ring-bg: var(--raised);
     }
-
-    /* Left Panel: Scatter Plot */
-    .scatter-panel {
-      display: flex;
-      flex-direction: column;
+    .stage-half { display: flex; flex-direction: column; min-width: 0; padding: 18px 20px 20px; }
+    .stage-mix { border-left: 1px solid var(--line); padding-left: 24px; padding-right: 24px; }
+    .stage-label {
+      display: flex; align-items: center; gap: 6px;
+      min-height: 24px;
+      margin-bottom: 10px;
+      font-size: var(--fs-label);
+      color: var(--text-2);
+      white-space: nowrap;
     }
+    .stage-label h2 { font: inherit; font-weight: 500; }
+    .stage-label .sub { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .stage-label .tip-btn { margin-left: -2px; }
 
-    .canvas-container {
+    /* Sound map */
+    .plot {
       position: relative;
       flex: 1;
-      width: 100%;
-      min-height: 320px;
+      min-height: 380px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      touch-action: pan-y;
     }
+    #map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .map-labels { position: absolute; inset: 0; pointer-events: none; }
 
-    #sound-map-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
+    /* Labels and y captions are bare text with a halo in the panel tone, so they
+       stay legible over dense dots without pill backgrounds. */
+    .halo {
+      -webkit-text-stroke: 4px var(--raised);
+      paint-order: stroke fill;
     }
-
-    .canvas-tooltip {
-      position: absolute;
-      background-color: var(--surface-raised);
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 12px;
-      color: var(--text-1);
-      pointer-events: none;
-      display: none;
-      z-index: 10;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      max-width: 220px;
-    }
-
-    .canvas-tooltip .tt-name {
+    .map-label {
+      position: absolute; left: 0; top: 0;
+      display: inline-flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text-1);
-      margin-bottom: 2px;
+      pointer-events: auto;
+      transition: opacity var(--dur-fast) ease;
     }
+    .map-label .dot { box-shadow: 0 0 0 2px var(--raised); }
+    .map-label.is-minor { font-size: 12px; font-weight: 500; color: var(--text-2); }
+    .map-label.is-minor .dot { width: 6px; height: 6px; }
+    .map-label.is-hidden { visibility: hidden; }
+    .map-labels.has-focus .map-label:not(.is-focus) { opacity: 0.25; }
+    .map-labels.has-focus .map-label.is-focus { opacity: 1; visibility: visible; }
+    .axis-y { position: absolute; left: 8px; font-size: var(--fs-meta); color: var(--text-2); pointer-events: none; white-space: nowrap; }
+    .axis-y-top { top: 6px; }
+    .axis-y-bottom { bottom: 6px; }
+    .axis-x { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: var(--fs-meta); color: var(--text-2); }
+    .axis-x span { white-space: nowrap; }
 
-    .canvas-tooltip .tt-artist {
+    .map-tip {
+      position: absolute; left: 0; top: 0;
+      z-index: 5;
+      display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 10px; align-items: center;
+      width: max-content; max-width: 260px;
+      padding: 8px 10px 8px 8px;
+      background: var(--highest);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 10px 28px rgba(2, 6, 16, 0.55);
+      font-size: var(--fs-meta);
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.97);
+      transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+    }
+    .map-tip.is-open { opacity: 1; transform: none; }
+    .map-tip[data-instant="true"] { transition-duration: 0ms; }
+    .map-tip-text { min-width: 0; display: flex; flex-direction: column; }
+    .map-tip-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .map-tip-artist, .map-tip-persona { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .map-tip-persona { display: flex; align-items: center; gap: 6px; }
+
+    .map-status {
+      position: absolute; inset: 0;
+      z-index: 6;
+      display: grid; place-items: center;
+      text-align: center;
+      font-size: var(--fs-meta);
       color: var(--text-2);
-      font-size: 11px;
-      margin-bottom: 4px;
+      pointer-events: none;
+    }
+    .map-status > div {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      background: var(--highest);
+      border-radius: var(--radius-sm);
+      pointer-events: auto;
     }
 
-    .canvas-tooltip .tt-persona {
-      font-size: 11px;
-      display: flex;
+    .mix { flex: 1; display: flex; flex-direction: column; }
+    .mix-rows { display: flex; flex-direction: column; }
+    .mix-row {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      grid-template-areas: "dot name pct" ". bar bar";
       align-items: center;
-      gap: 6px;
+      column-gap: 10px;
+      row-gap: 5px;
+      min-height: 32px;
+      padding: 5px 8px;
+      margin: 0 -8px;
+      border-radius: 4px;
+      font-size: var(--fs-meta);
+      transition: background-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
     }
-
-    .scatter-footer-axes {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 8px;
-      font-size: 11px;
-      color: var(--text-3);
-      border-top: 1px solid var(--border);
-      padding-top: 8px;
+    .mix-row .dot { grid-area: dot; }
+    .mix-row .name { grid-area: name; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mix-row .pct { grid-area: pct; color: var(--text-2); }
+    .mix-row .bar { grid-area: bar; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+    .mix-row .bar-fill {
+      display: block; height: 100%; width: var(--w);
+      border-radius: 3px; background: var(--c);
+      transform-origin: left center;
     }
+    .mix-rows.is-fresh .bar-fill { animation: grow 320ms var(--ease-out) var(--delay, 0ms) both; }
+    @keyframes grow { from { transform: scaleX(0); } }
+    .mix-row.is-focus { background: var(--highest); }
+    .mix.has-focus .mix-row:not(.is-focus) { opacity: 0.45; }
+    .mix-absent { margin-top: 10px; font-size: var(--fs-meta); color: var(--text-3); }
+    .mix-blurb { margin-top: 14px; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-2); }
+    .mix-blurb strong { color: var(--text-1); font-weight: 500; }
+    .mix-empty { font-size: var(--fs-meta); color: var(--text-2); margin-top: 12px; }
 
-    /* Right Panel: Donut Chart */
-    .donut-panel {
-      display: flex;
-      flex-direction: column;
+    .diversity { margin-top: auto; padding-top: 18px; }
+    .range-scale { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: var(--fs-meta); color: var(--text-3); }
+    .diversity-text { margin-top: 8px; font-size: var(--fs-meta); color: var(--text-2); display: flex; align-items: center; gap: 4px; }
+
+    /* ---------- Below the fold: flat sections ---------- */
+    .lower {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 56px;
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid var(--line);
     }
+    .section-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+    .section-head h2 { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; }
+    .section-hint { font-size: var(--fs-meta); color: var(--text-3); display: flex; align-items: center; gap: 6px; }
 
-    .donut-chart-container {
-      display: flex;
-      justify-content: center;
+    .cmp-row { padding: 14px 0; }
+    .cmp-row + .cmp-row { border-top: 1px solid var(--line); }
+    .cmp-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .cmp-name { font-weight: 500; }
+    .cmp-hint { font-size: var(--fs-meta); color: var(--text-3); }
+    .cmp-val { font-size: var(--fs-meta); font-weight: 500; white-space: nowrap; }
+    .cmp-meter { position: relative; height: 16px; }
+    .cmp-meter .track { position: absolute; left: 0; right: 0; top: 6px; height: 4px; border-radius: 2px; background: var(--line); }
+    .cmp-meter .tick { position: absolute; left: 50%; top: 2px; width: 2px; height: 12px; margin-left: -1px; border-radius: 1px; background: var(--text-3); }
+    .cmp-meter .mark {
+      position: absolute; top: 1px; left: var(--x);
+      width: 14px; height: 14px; margin-left: -7px;
+      border-radius: 50%;
+      background: var(--text-1);
+      box-shadow: 0 0 0 3px var(--bg);
+    }
+    .is-fresh .cmp-meter .mark { animation: mark-in 240ms var(--ease-out) var(--delay, 140ms) both; }
+    .cmp-ends { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-label); color: var(--text-3); }
+    .cmp-sentence { margin-top: 6px; font-size: var(--fs-meta); color: var(--text-2); }
+
+    .recs { display: flex; flex-direction: column; margin-top: 6px; }
+    .rec {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
       align-items: center;
-      position: relative;
+      column-gap: 12px;
       padding: 10px 0;
     }
-
-    .donut-svg {
-      width: 190px;
-      height: 190px;
-      transform: rotate(-90deg);
-    }
-
-    .donut-center-group {
-      pointer-events: none;
-      position: absolute;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      width: 120px;
-    }
-
-    .donut-center-pct {
-      font-size: 28px;
-      font-weight: 600;
-      color: var(--text-1);
-      line-height: 1;
-    }
-
-    .donut-center-name {
-      font-size: 11px;
-      color: var(--text-2);
-      margin-top: 4px;
-      line-height: 1.2;
-      max-width: 110px;
-      text-align: center;
-    }
-
-    .donut-segment {
-      cursor: pointer;
-      transition: stroke-width 150ms ease-out, opacity 150ms ease-out;
-    }
-
-    .donut-segment:hover {
-      stroke-width: 24;
-    }
-
-    .donut-legend {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 12px;
-      overflow-y: auto;
-      max-height: 180px;
-      padding-right: 4px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      padding: 4px 6px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 150ms ease-out;
-    }
-
-    .legend-item:hover, .legend-item.active {
-      background-color: var(--surface-raised);
-    }
-
-    .legend-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    .legend-name {
-      color: var(--text-2);
-      white-space: normal;
-      line-height: 1.3;
-    }
-
-    .legend-pct {
-      color: var(--text-1);
-      font-weight: 500;
-      margin-left: 8px;
-      flex-shrink: 0;
-    }
-
-    /* ─── BOTTOM ROW ─── */
-    .bottom-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    /* How you compare */
-    .traits-list {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .trait-row {
-      display: grid;
-      grid-template-columns: 100px 1fr 50px;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .trait-label {
-      font-size: 13px;
-      color: var(--text-2);
-      text-transform: capitalize;
-    }
-
-    .trait-track {
-      height: 6px;
-      background-color: var(--surface-raised);
-      border-radius: 3px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .trait-fill {
-      height: 100%;
-      background-color: var(--accent);
-      border-radius: 3px;
-      transition: width 300ms ease-out;
-    }
-
-    .trait-value {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-1);
-      text-align: right;
-    }
-
-    /* Recommended tracks */
-    .recommendations-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .rec-item {
-      padding: 10px 12px;
-      background-color: var(--surface-raised);
-      border-radius: var(--radius-control);
-      border: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .rec-track-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-1);
+    .rec + .rec { border-top: 1px solid var(--line); }
+    .rec-text { min-width: 0; display: flex; flex-direction: column; }
+    .rec-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rec-text span:first-child { font-weight: 500; }
+    .rec-text span:last-child { font-size: var(--fs-meta); color: var(--text-2); }
+    .rec-link {
+      display: inline-flex; align-items: center;
+      min-height: 40px; padding: 0 4px;
+      font-size: var(--fs-meta); color: var(--text-2);
+      text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line);
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      transition: color var(--dur-fast) ease, text-decoration-color var(--dur-fast) ease;
     }
-
-    .rec-track-meta {
-      font-size: 11px;
-      color: var(--text-3);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    @media (hover: hover) and (pointer: fine) {
+      .rec-link:hover { color: var(--text-1); text-decoration-color: var(--text-3); }
     }
+    .recs-empty { font-size: var(--fs-meta); color: var(--text-2); }
 
-    /* ─── FOOTER ─── */
-    .site-footer {
-      margin-top: 12px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-3);
-      line-height: 1.6;
+    /* ---------- How this works ---------- */
+    .how { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .how summary {
+      display: flex; align-items: center; gap: 8px;
+      min-height: 44px; width: fit-content;
+      font-size: var(--fs-title); font-weight: 600;
+      cursor: pointer;
+      list-style: none;
     }
-
-    /* ─── SKELETON / LOADING STATES ─── */
-    .skeleton {
-      background-color: var(--surface-raised);
-      border-radius: 4px;
-      animation: pulse 1.5s infinite ease-in-out;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 0.6; }
-      50% { opacity: 0.3; }
-      100% { opacity: 0.6; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .skeleton {
-        animation: none;
-        opacity: 0.5;
-      }
-      .donut-segment, .trait-fill {
-        transition: none !important;
-      }
-    }
-
-    /* Initial state prompt overlay */
-    .initial-map-overlay {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: var(--surface-raised);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-control);
-      padding: 8px 16px;
-      font-size: 12px;
+    .how summary::-webkit-details-marker { display: none; }
+    .how summary svg { width: 16px; height: 16px; color: var(--text-3); transition: transform var(--dur) var(--ease-out); }
+    .how[open] summary svg { transform: rotate(90deg); }
+    .how-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 28px 56px;
+      margin-top: 16px;
+      font-size: var(--fs-meta);
       color: var(--text-2);
-      pointer-events: none;
-      z-index: 5;
     }
+    .how-body h3 { font-size: var(--fs-meta); font-weight: 600; color: var(--text-1); margin-bottom: 6px; }
+    .how-body p + p { margin-top: 8px; }
+    .how-wide { grid-column: 1 / -1; }
+    .how-table { width: 100%; border-collapse: collapse; }
+    .how-table th, .how-table td { text-align: left; padding: 8px 12px 8px 0; border-top: 1px solid var(--line); vertical-align: top; }
+    .how-table th { color: var(--text-3); font-weight: 400; border-top: 0; }
+    .how-table td:first-child { color: var(--text-1); white-space: nowrap; }
+    .how-table .dot { margin-right: 8px; }
 
-    /* Responsive Stacking below 1100px */
+    /* ---------- Skeletons ---------- */
+    .skel { display: block; background: var(--highest); border-radius: 4px; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.55; } }
+
+    /* ---------- Shared tooltip ---------- */
+    .tip {
+      position: fixed; left: 0; top: 0; z-index: 60;
+      max-width: 300px;
+      padding: 8px 10px;
+      background: var(--highest);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 10px 28px rgba(2, 6, 16, 0.55);
+      font-size: var(--fs-meta);
+      color: var(--text-1);
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.97);
+      transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+    }
+    .tip.is-open { opacity: 1; transform: none; }
+    .tip[data-instant="true"] { transition-duration: 0ms; }
+
+    /* ---------- Responsive ---------- */
     @media (max-width: 1100px) {
-      .app-shell {
-        flex-direction: column;
+      .stage { grid-template-columns: minmax(0, 1fr); }
+      .stage-mix { border-left: 0; border-top: 1px solid var(--line); padding-left: 20px; padding-right: 20px; }
+      .diversity { margin-top: 0; }
+    }
+    @media (max-width: 980px) {
+      .lower { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+      .how-body { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 820px) {
+      .app { grid-template-columns: minmax(0, 1fr); }
+      main { order: 1; padding-top: 32px; padding-bottom: 32px; }
+      .rail { order: 2; position: static; height: auto; gap: 20px; border-right: 0; border-top: 1px solid var(--line); padding: 24px 20px 96px; }
+      .brand { display: none; }
+      .song-list { max-height: none; overflow: visible; }
+      .rail-actions {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+        flex-direction: row; align-items: center; gap: 12px;
+        margin: 0;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+        background: var(--bg);
       }
-      .sidebar {
-        width: 100%;
-        height: auto;
-        position: static;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-      }
-      .main-content {
-        padding: 20px;
-      }
-      .centre-row {
-        grid-template-columns: 1fr;
-      }
-      .bottom-row {
-        grid-template-columns: 1fr;
-      }
-      .summary-panel {
-        grid-template-columns: 1fr;
-      }
-      .summary-cell:not(:last-child) {
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-      }
+      .bar-count { display: block; flex: 1; min-width: 0; font-size: var(--fs-meta); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .rail-actions .btn-text { order: 0; min-height: 40px; padding: 0 8px; }
+      .rail-actions .btn-primary { min-width: 148px; padding: 0 16px; }
+      .stage-half { padding: 14px 16px 16px; }
+      .plot { min-height: 320px; }
+    }
+    @media (pointer: coarse) {
+      .mix-row { min-height: 40px; }
+      .tip-btn { min-width: 40px; min-height: 40px; }
+      .song .icon-btn { width: 40px; height: 40px; }
+    }
+
+    /* ---------- Reduced motion: keep fades, drop movement ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .is-fresh .meter-mark, .is-fresh .cmp-meter .mark, .mix-rows.is-fresh .bar-fill { animation: fade 200ms ease both; }
+      .btn-primary:active:not(:disabled), .btn-quiet:active { transform: none; }
+      .tip, .map-tip { transform: none; }
+      .how summary svg { transition: none; }
+      .skel { animation: none; }
     }
   </style>
 </head>
 <body>
+  <a class="skip" href="#main">Skip to results</a>
 
-  <div class="app-shell">
-    <!-- ====================================================================
-         SIDEBAR: Search, Selected Tracks, Analyze Action
-         ==================================================================== -->
-    <aside class="sidebar" aria-label="Sidebar navigation and track selection">
-      <header class="brand-header">
-        <svg class="brand-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M8 12a4 4 0 0 1 8 0"/>
-          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-        </svg>
-        <h1 class="brand-title">Music Taste Profile Engine</h1>
-      </header>
+  <div class="app">
+    <!-- ================================ Sidebar ================================ -->
+    <aside class="rail" aria-label="Your songs">
+      <div class="brand">What's My Sound?</div>
 
-      <!-- Autocomplete Song Search -->
-      <section class="search-container" aria-label="Search tracks">
-        <div class="search-input-wrapper">
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="11" cy="11" r="7"/>
-            <line x1="16" y1="16" x2="21" y2="21"/>
-          </svg>
-          <input
-            id="track-search-input"
-            class="search-input"
-            type="text"
-            placeholder="Search tracks or artists…"
-            autocomplete="off"
-            aria-autocomplete="list"
-            aria-controls="search-results-dropdown"
-          />
+      <div class="search" id="search">
+        <label class="label" for="search-input">Add songs you love</label>
+        <div class="search-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="search-input" class="search-input" type="text"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-options"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="Song or artist">
         </div>
-        <div id="search-results-dropdown" class="search-dropdown" role="listbox"></div>
-      </section>
-
-      <!-- Selected tracks list -->
-      <section class="tracks-section" aria-label="Selected tracks list">
-        <div class="section-label-row">
-          <span class="section-label">Your tracks</span>
-          <span id="track-count-badge" class="track-count-badge tabular-nums">0 / 20</span>
+        <div class="search-pop" id="search-pop" hidden>
+          <p class="search-msg" id="search-msg" hidden></p>
+          <ul id="search-options" role="listbox" aria-label="Matching songs"></ul>
         </div>
+      </div>
 
-        <ul id="selected-tracks-list" class="selected-tracks-list">
-          <!-- Populated by JS -->
-          <li class="empty-tracks-placeholder">
-            Add 1 to 20 tracks to analyze your sound distribution.
-          </li>
-        </ul>
-      </section>
+      <div class="songs">
+        <div class="songs-head">
+          <h2 class="label">Your songs</h2>
+          <span class="count" id="song-count" aria-live="polite">0 / 20</span>
+        </div>
+        <p class="hint" id="song-hint"></p>
+        <ul class="song-list" id="song-list"></ul>
+      </div>
 
-      <!-- Actions -->
-      <div class="sidebar-actions">
-        <button id="analyze-btn" class="primary-btn" disabled>
-          Analyze taste
-        </button>
-        <button id="clear-all-btn" class="text-btn" disabled>
-          Clear all tracks
-        </button>
+      <div class="rail-actions">
+        <span class="bar-count" id="bar-count" aria-hidden="true"></span>
+        <button class="btn-text" id="clear-btn" type="button" disabled>Clear all</button>
+        <button class="btn-primary" id="analyze-btn" type="button" disabled>Analyze taste</button>
       </div>
     </aside>
 
-    <!-- ====================================================================
-         MAIN CONTENT: Diagnostics, Visualizations & Recommendations
-         ==================================================================== -->
-    <main class="main-content" id="main-area" aria-live="polite">
-      <!-- Page Header -->
-      <header class="page-header">
-        <h2 class="page-title">Your sound</h2>
-        <p class="page-subtitle">k-means clustering of 127,900 Spotify tracks into 7 sound personas</p>
-      </header>
+    <!-- ================================ Main ================================ -->
+    <main id="main" tabindex="-1">
+      <section class="hero" id="hero"></section>
 
-      <!-- Inline Notification Banner -->
-      <div id="status-banner" class="status-banner" role="alert">
-        <span id="status-banner-text">Error loading analysis.</span>
-        <button id="banner-retry-btn" class="banner-retry-btn">Retry</button>
+      <!-- The stage: one raised surface, map | breakdown, split by a hairline -->
+      <div class="stage" id="stage">
+        <section class="stage-half stage-map" aria-labelledby="map-title">
+          <div class="stage-label">
+            <h2 id="map-title">Sound map</h2>
+            <span class="sub" id="map-hint"></span>
+            <button class="tip-btn" type="button" id="axes-tip" data-tip="" aria-label="About this map and its axes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            </button>
+          </div>
+          <div class="plot" id="plot">
+            <canvas id="map-canvas" role="img" aria-label="Sound map loading"></canvas>
+            <div class="map-labels" id="map-labels" aria-hidden="true"></div>
+            <span class="axis-y axis-y-top halo" id="y-high" aria-hidden="true"></span>
+            <span class="axis-y axis-y-bottom halo" id="y-low" aria-hidden="true"></span>
+            <div class="map-tip" id="map-tip" aria-hidden="true" hidden></div>
+            <div class="map-status" id="map-status" hidden></div>
+          </div>
+          <div class="axis-x">
+            <span id="x-low"></span>
+            <span id="x-high"></span>
+          </div>
+        </section>
+
+        <section class="stage-half stage-mix" aria-labelledby="mix-title">
+          <div class="stage-label">
+            <h2 id="mix-title">Persona breakdown</h2>
+          </div>
+          <div class="mix" id="mix"></div>
+        </section>
       </div>
 
-      <!-- Summary KPI Row (Single Panel, 1px Dividers) -->
-      <section class="panel summary-panel" aria-label="Taste overview metrics">
-        <div class="summary-cell">
-          <span class="summary-label">Top persona</span>
-          <div id="top-persona-container" class="summary-persona-title">
-            <span style="color: var(--text-3); font-weight: 400; font-size: 14px;">—</span>
+      <div class="lower" id="lower" hidden>
+        <section aria-labelledby="cmp-title">
+          <div class="section-head">
+            <h2 id="cmp-title">How you compare</h2>
+            <p class="section-hint">Your average vs. every track in the dataset. The tick marks the typical track.</p>
           </div>
-          <span id="top-persona-subtext" class="summary-subtext">—</span>
-        </div>
-
-        <div class="summary-cell">
-          <span class="summary-label">
-            Diversity score
-            <span class="info-tooltip-trigger" tabindex="0" aria-label="Diversity score explanation">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="9"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
-              </svg>
-              <span class="tooltip-box">Normalised Shannon entropy of your persona split. (0.00 = focused, 1.00 = eclectic).</span>
-            </span>
-          </span>
-          <div class="summary-value-row">
-            <span id="diversity-score-val" class="summary-value-lg tabular-nums">—</span>
-            <span id="diversity-score-label" class="summary-subtext">—</span>
-            <span id="low-sample-warning" class="summary-low-sample" style="display: none;">(Low sample size)</span>
+          <div id="compare"></div>
+        </section>
+        <section aria-labelledby="recs-title">
+          <div class="section-head">
+            <h2 id="recs-title">Recommended</h2>
+            <p class="section-hint" id="recs-hint"></p>
           </div>
-          <span class="summary-subtext">Shannon entropy</span>
-        </div>
+          <div class="recs" id="recs"></div>
+        </section>
+      </div>
 
-        <div class="summary-cell">
-          <span class="summary-label">Tracks matched</span>
-          <div class="summary-value-row">
-            <span id="tracks-matched-val" class="summary-value-lg tabular-nums">—</span>
-          </div>
-          <span class="summary-subtext">Found in 127,900 modeled corpus</span>
-        </div>
-      </section>
-
-      <!-- Centre Visualisation Row: Sound Map + Persona Breakdown -->
-      <section class="centre-row" aria-label="Visualizations">
-        <!-- Sound Map Scatter Plot -->
-        <div class="panel scatter-panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Sound map</h3>
-            <p class="panel-caption">2D PCA projection of audio features · User tracks highlighted</p>
-          </div>
-
-          <div class="canvas-container" id="canvas-container">
-            <canvas id="sound-map-canvas"></canvas>
-            <div id="canvas-tooltip" class="canvas-tooltip"></div>
-            <div id="initial-map-overlay" class="initial-map-overlay">
-              Add 5–20 songs to see your breakdown.
-            </div>
-          </div>
-
-          <div class="scatter-footer-axes">
-            <span id="axis-component-1">Component 1 (34%)</span>
-            <span id="axis-component-2">Component 2 (17%)</span>
-          </div>
-        </div>
-
-        <!-- Persona Breakdown Donut Chart -->
-        <div class="panel donut-panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Persona breakdown</h3>
-            <p class="panel-caption">Distribution across the 7 sound clusters</p>
-          </div>
-
-          <div class="donut-chart-container">
-            <svg class="donut-svg" id="donut-svg" viewBox="0 0 240 240" aria-label="Persona breakdown donut chart">
-              <!-- Rendered via JS -->
-            </svg>
-            <div class="donut-center-group" id="donut-center-group">
-              <span id="donut-center-pct" class="donut-center-pct tabular-nums">—</span>
-              <span id="donut-center-name" class="donut-center-name">No data</span>
-            </div>
-          </div>
-
-          <ul id="donut-legend" class="donut-legend" aria-label="Persona legend">
-            <!-- Rendered via JS -->
-          </ul>
-        </div>
-      </section>
-
-      <!-- Bottom Row: Audio Traits Comparison + Recommended Tracks -->
-      <section class="bottom-row" aria-label="Detailed diagnostics">
-        <!-- Audio traits percentiles -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">How you compare</h3>
-            <p class="panel-caption">Your average vs. all tracks in the dataset</p>
-          </div>
-
-          <div class="traits-list" id="traits-list">
-            <div class="trait-row">
-              <span class="trait-label">Danceability</span>
-              <div class="trait-track"><div id="trait-danceability" class="trait-fill" style="width: 0%;"></div></div>
-              <span id="trait-danceability-val" class="trait-value tabular-nums">—</span>
-            </div>
-            <div class="trait-row">
-              <span class="trait-label">Energy</span>
-              <div class="trait-track"><div id="trait-energy" class="trait-fill" style="width: 0%;"></div></div>
-              <span id="trait-energy-val" class="trait-value tabular-nums">—</span>
-            </div>
-            <div class="trait-row">
-              <span class="trait-label">Valence</span>
-              <div class="trait-track"><div id="trait-valence" class="trait-fill" style="width: 0%;"></div></div>
-              <span id="trait-valence-val" class="trait-value tabular-nums">—</span>
-            </div>
-            <div class="trait-row">
-              <span class="trait-label">Acousticness</span>
-              <div class="trait-track"><div id="trait-acousticness" class="trait-fill" style="width: 0%;"></div></div>
-              <span id="trait-acousticness-val" class="trait-value tabular-nums">—</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recommended Tracks -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Recommended tracks</h3>
-            <p class="panel-caption">Nearest neighbours within your dominant persona</p>
-          </div>
-
-          <ul class="recommendations-list" id="recommendations-list">
-            <li class="rec-item" style="color: var(--text-3); font-size: 12px; background: transparent; border: none; padding: 16px 0;">
-              Run an analysis to discover songs matching your primary sound persona.
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- Footer -->
-      <footer class="site-footer">
-        <p>k-means (k=7) · Yeo-Johnson transform · 2D PCA projection · 127,900 tracks</p>
-        <p style="margin-top: 4px; color: var(--text-3); font-size: 11px;">
-          Cluster separation is moderate (silhouette ≈ 0.17–0.20), so personas overlap by nature.
-        </p>
-      </footer>
+      <details class="how" id="how">
+        <summary>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+          How this works
+        </summary>
+        <div class="how-body" id="how-body"></div>
+      </details>
     </main>
   </div>
 
-  <!-- ====================================================================
-       4. CLIENT JAVASCRIPT
-       ==================================================================== -->
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <p class="sr-only" id="announcer" aria-live="polite"></p>
+
   <script>
-    /**
-     * Music Taste Profile Engine — Pure Vanilla JS Client Architecture
-     * - Pure function rendering based on single reactive state
-     * - HTML Canvas Scatter Plot with Retina / devicePixelRatio support
-     * - Inline SVG Donut Chart with Hamilton Largest-Remainder Rounding
-     * - Debounced Autocomplete with keyboard navigation
-     */
+  "use strict";
 
-    // Configuration
-    const API_BASE = window.location.protocol.startsWith("http") ? window.location.origin : "http://localhost:8000";
-    const IS_MOCK = new URLSearchParams(window.location.search).get("mock") === "1";
+  /* ==========================================================================
+     Configuration
+     ========================================================================== */
+  const API_BASE = location.protocol.startsWith("http") ? location.origin : "http://localhost:8000";
+  const MAX_TRACKS = 20;
+  const SUGGESTED_MIN_TRACKS = 10;
+  const SOUND_MAP_SAMPLE = 6000;
+  const SEARCH_LIMIT = 8;
+  const SEARCH_DEBOUNCE_MS = 180;
+  const FALLBACK_DATASET_SIZE = 127900; // replaced by /api/health when it answers
 
-    // 7 Canonical Personas and assigned CSS color tokens
-    const PERSONA_COLORS = {
-      "Heavy & Live": "var(--persona-0)",
-      "Vocal & Rhythmic": "var(--persona-1)",
-      "Bright Pop & Groove": "var(--persona-2)",
-      "Driven Alt & Punk": "var(--persona-3)",
-      "Synth & Club": "var(--persona-4)",
-      "Unplugged & Intimate": "var(--persona-5)",
-      "Ambient & Drone": "var(--persona-6)"
-    };
+  const DIVERSITY_THRESHOLDS = { focused: 0.35, eclectic: 0.65 };
 
-    // Concrete hex values for Canvas drawing
-    const PERSONA_HEX = {
-      "Heavy & Live": "#E58E7A",
-      "Vocal & Rhythmic": "#E6C07B",
-      "Bright Pop & Groove": "#7CC4F5",
-      "Driven Alt & Punk": "#9A8CF0",
-      "Synth & Club": "#5FD0C4",
-      "Unplugged & Intimate": "#E88FB0",
-      "Ambient & Drone": "#8A98A8"
-    };
+  const PERSONA_COLOR_VARS = {
+    "Heavy & Live":         "--persona-heavy-live",
+    "Bright Pop & Groove":  "--persona-bright-pop",
+    "Vocal & Rhythmic":     "--persona-vocal-rhythmic",
+    "Synth & Club":         "--persona-synth-club",
+    "Driven Alt & Punk":    "--persona-driven-alt",
+    "Unplugged & Intimate": "--persona-unplugged",
+    "Ambient & Drone":      "--persona-ambient",
+  };
+  const PERSONA_COLORS = {}; // resolved from CSS at boot (the canvas needs real hex values)
 
-    // Central State
-    const state = {
-      selectedTracks: [],       // Array of { track_id, track_name, artists, persona }
-      soundMapData: null,       // { points: [{pca_x, pca_y, persona}], explained_variance: [0.34, 0.17] }
-      tasteProfile: null,       // Result of POST /api/taste-profile
-      status: "initial",        // 'initial' | 'loading' | 'results' | 'error'
-      errorMessage: "",
-      highlightedPersona: null, // For linked hover interactions
-      hoveredUserPoint: null,   // Currently hovered point on scatter canvas
-      searchDropdownIndex: -1,
-      searchResults: []
-    };
+  // Cluster ids from models/persona_metadata.json. engine.py picks the dominant
+  // persona with mode(), which breaks ties by the lowest cluster id; we sort the
+  // same way so the headline, breakdown and recommendations agree.
+  // Keep in sync with the notebook's persona_names; k-means renumbers clusters on retrain.
+  const PERSONA_CLUSTER_ID = {
+    "Heavy & Live": 0, "Driven Alt & Punk": 1, "Synth & Club": 2, "Vocal & Rhythmic": 3,
+    "Bright Pop & Groove": 4, "Unplugged & Intimate": 5, "Ambient & Drone": 6,
+  };
+  const PERSONA_ORDER = Object.keys(PERSONA_CLUSTER_ID).sort((a, b) => PERSONA_CLUSTER_ID[a] - PERSONA_CLUSTER_ID[b]);
 
-    // DOM Elements Cache
-    const el = {
-      searchInput: document.getElementById("track-search-input"),
-      searchDropdown: document.getElementById("search-results-dropdown"),
-      selectedList: document.getElementById("selected-tracks-list"),
-      trackCountBadge: document.getElementById("track-count-badge"),
-      analyzeBtn: document.getElementById("analyze-btn"),
-      clearAllBtn: document.getElementById("clear-all-btn"),
-      statusBanner: document.getElementById("status-banner"),
-      statusBannerText: document.getElementById("status-banner-text"),
-      bannerRetryBtn: document.getElementById("banner-retry-btn"),
+  // Keyed by the data name so the backend never changes; a rename is a one-line edit here.
+  const PERSONA_DISPLAY = {
+    "Bright Pop & Groove": {
+      name: "Bright Pop & Groove",
+      blurb: "Happy, danceable, built for singing along in the car.",
+      traits: ["happy", "danceable", "fairly energetic"],
+      stats: "mood (valence) +0.83, danceability +0.67, energy +0.46",
+    },
+    "Vocal & Rhythmic": {
+      name: "Vocal & Rhythmic",
+      blurb: "Lots of lyrics and lots of rhythm. The voice is the instrument.",
+      traits: ["lots of spoken or rapped words", "danceable", "upbeat"],
+      stats: "speechiness +1.35, danceability +0.80, mood (valence) +0.41",
+    },
+    "Heavy & Live": {
+      name: "Heavy & Live",
+      blurb: "Loud, high-energy, often recorded in front of a crowd.",
+      traits: ["high energy", "loud", "sounds live"],
+      stats: "energy +0.93, loudness +0.66, liveness +0.62",
+    },
+    "Synth & Club": {
+      name: "Synth & Club",
+      blurb: "Instrumental, driving and a little dark. Made for dance floors, not singalongs.",
+      traits: ["mostly instrumental", "energetic", "darker mood"],
+      stats: "instrumentalness +1.62, energy +0.59, mood (valence) −0.46",
+    },
+    "Unplugged & Intimate": {
+      name: "Unplugged & Intimate",
+      blurb: "Slow, acoustic and close, like someone playing for the room instead of a stage.",
+      traits: ["slow", "acoustic", "gentle"],
+      stats: "tempo −1.00, acousticness +0.86, energy −0.85",
+    },
+    "Ambient & Drone": {
+      name: "Ambient & Drone",
+      blurb: "Barely there. Very quiet, mostly instrumental, more atmosphere than song.",
+      traits: ["very quiet", "mostly instrumental", "very low energy"],
+      stats: "loudness −2.25, instrumentalness +2.05, energy −1.77",
+    },
+    // The data name is misleading: this cluster is fast (tempo +0.80) but low-energy
+    // (−0.64) and acoustic-leaning (+0.59), nothing like punk. Display name candidates:
+    // "Brisk Acoustic" (used) or "Quick & Quiet".
+    "Driven Alt & Punk": {
+      name: "Brisk Acoustic",
+      blurb: "Quick tempo but gentle and acoustic-leaning. Moves along without getting loud.",
+      traits: ["quick tempo", "lower energy", "acoustic-leaning"],
+      stats: "tempo +0.80, energy −0.64, acousticness +0.59",
+    },
+  };
 
-      // Summary
-      topPersonaContainer: document.getElementById("top-persona-container"),
-      topPersonaSubtext: document.getElementById("top-persona-subtext"),
-      diversityVal: document.getElementById("diversity-score-val"),
-      diversityLabel: document.getElementById("diversity-score-label"),
-      lowSampleWarning: document.getElementById("low-sample-warning"),
-      tracksMatchedVal: document.getElementById("tracks-matched-val"),
+  // Map axis captions. These are hard-coded from the PCA loadings (pca_2d.components_
+  // in models/pca_2d.joblib, fitted in 04_ml_pipeline.ipynb) over the 7 clustering
+  // features [danceability, speechiness, instrumentalness, liveness, valence, tempo, intensity]:
+  //   PC1: intensity +0.82 (intensity = +energy +loudness −acousticness), valence +0.30
+  //   PC2: danceability +0.58, valence +0.51, intensity −0.39, instrumentalness −0.33
+  // If the model is retrained these loadings change (and signs can flip), so re-check
+  // pca_2d.components_ and update these captions.
+  const AXIS_LABELS = {
+    x: { low: "quieter, acoustic", high: "louder, energetic" },
+    y: { low: "instrumental, intense", high: "danceable, upbeat" },
+  };
 
-      // Scatter
-      canvas: document.getElementById("sound-map-canvas"),
-      canvasContainer: document.getElementById("canvas-container"),
-      canvasTooltip: document.getElementById("canvas-tooltip"),
-      initialOverlay: document.getElementById("initial-map-overlay"),
-      axisComp1: document.getElementById("axis-component-1"),
-      axisComp2: document.getElementById("axis-component-2"),
+  const FEATURE_COPY = {
+    danceability: { label: "Danceability", hint: "How easy it is to dance to" },
+    energy:       { label: "Energy",       hint: "How intense and busy it feels" },
+    valence:      { label: "Mood",         hint: "How happy or bright it sounds (Spotify's “valence”)" },
+    acousticness: { label: "Acousticness", hint: "How acoustic rather than produced it sounds" },
+  };
 
-      // Donut
-      donutSvg: document.getElementById("donut-svg"),
-      donutCenterPct: document.getElementById("donut-center-pct"),
-      donutCenterName: document.getElementById("donut-center-name"),
-      donutLegend: document.getElementById("donut-legend"),
+  /* ==========================================================================
+     State
+     ========================================================================== */
+  const state = {
+    tracks: [],              // selected search results, in the order added
+    status: "empty",         // empty | loading | results | error
+    profile: null,
+    analyzedIds: [],         // ids behind the current profile
+    error: null,             // { message, network }
+    map: null,               // { points, explained_variance }
+    mapStatus: "loading",    // loading | ready | error
+    datasetSize: FALLBACK_DATASET_SIZE,
+    focusPersona: null,      // data name: linked highlight across breakdown rows and map
+    hoverTrackId: null,      // linked highlight between sidebar rows and map points
+    hoverSource: null,       // "map" | "rail"
+    search: { query: "", results: [], active: -1, status: "idle" }, // idle | loading | done | error
+  };
 
-      // Bottom
-      traitDance: document.getElementById("trait-danceability"),
-      traitDanceVal: document.getElementById("trait-danceability-val"),
-      traitEnergy: document.getElementById("trait-energy"),
-      traitEnergyVal: document.getElementById("trait-energy-val"),
-      traitValence: document.getElementById("trait-valence"),
-      traitValenceVal: document.getElementById("trait-valence-val"),
-      traitAcoustic: document.getElementById("trait-acousticness"),
-      traitAcousticVal: document.getElementById("trait-acousticness-val"),
-      recList: document.getElementById("recommendations-list")
-    };
+  /* ==========================================================================
+     Helpers
+     ========================================================================== */
+  const $ = (sel) => document.querySelector(sel);
+  const el = {
+    searchInput: $("#search-input"), searchPop: $("#search-pop"), searchMsg: $("#search-msg"), searchOptions: $("#search-options"),
+    songCount: $("#song-count"), songHint: $("#song-hint"), songList: $("#song-list"),
+    analyzeBtn: $("#analyze-btn"), clearBtn: $("#clear-btn"),
+    hero: $("#hero"), lower: $("#lower"), mix: $("#mix"), compare: $("#compare"),
+    recs: $("#recs"), recsHint: $("#recs-hint"), howBody: $("#how-body"),
+    plot: $("#plot"), mapCanvas: $("#map-canvas"), mapLabels: $("#map-labels"), mapTip: $("#map-tip"),
+    mapStatus: $("#map-status"), mapHint: $("#map-hint"), axesTip: $("#axes-tip"),
+    yHigh: $("#y-high"), yLow: $("#y-low"),
+    tip: $("#tip"), announcer: $("#announcer"),
+  };
 
-    /* ==========================================================================
-       HELPERS & UTILITIES
-       ========================================================================== */
+  function esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  const colorOf = (persona) => PERSONA_COLORS[persona] || "#7F92B3";
+  const nameOf = (persona) => (PERSONA_DISPLAY[persona] && PERSONA_DISPLAY[persona].name) || persona;
+  const blurbOf = (persona) => (PERSONA_DISPLAY[persona] && PERSONA_DISPLAY[persona].blurb) || "";
+  const fmtInt = (n) => Math.round(n).toLocaleString("en-US");
+  const announce = (msg) => { el.announcer.textContent = ""; requestAnimationFrame(() => { el.announcer.textContent = msg; }); };
 
-    // Safe HTML Escaping (Anti-XSS)
-    function escapeHtml(str) {
-      if (typeof str !== "string") return "";
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+  function loadPersonaColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const [persona, cssVar] of Object.entries(PERSONA_COLOR_VARS)) {
+      PERSONA_COLORS[persona] = cs.getPropertyValue(cssVar).trim() || "#7F92B3";
     }
+  }
 
-    // Largest-Remainder Rounding (Hamilton method) to ensure percentages strictly sum to 100%
-    function roundPercentagesTo100(rawMap) {
-      const keys = Object.keys(rawMap);
-      if (keys.length === 0) return {};
+  const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
 
-      const items = keys.map(k => {
-        const val = rawMap[k] * 100;
-        const floor = Math.floor(val);
-        const remainder = val - floor;
-        return { key: k, floor, remainder };
+  // Breakdown -> entries sorted by share, ties broken like engine.py's mode().
+  // Percentages use largest-remainder rounding so they add up to exactly 100.
+  function breakdownEntries(breakdown) {
+    const entries = Object.entries(breakdown || {})
+      .filter(([, frac]) => frac > 0)
+      .map(([persona, frac]) => ({ persona, frac, exact: frac * 100, pct: Math.floor(frac * 100) }));
+    const remaining = 100 - entries.reduce((sum, e) => sum + e.pct, 0);
+    [...entries].sort((a, b) => (b.exact - b.pct) - (a.exact - a.pct))
+      .slice(0, Math.max(0, remaining)).forEach((e) => { e.pct += 1; });
+    return entries.sort((a, b) => b.frac - a.frac || (PERSONA_CLUSTER_ID[a.persona] ?? 99) - (PERSONA_CLUSTER_ID[b.persona] ?? 99));
+  }
+  const currentEntries = () => (state.status === "results" ? breakdownEntries(state.profile.persona_breakdown) : []);
+
+  function diversityBand(score) {
+    if (score < DIVERSITY_THRESHOLDS.focused) return { label: "Focused", desc: "You keep coming back to one sound." };
+    if (score > DIVERSITY_THRESHOLDS.eclectic) return { label: "Eclectic", desc: "No single sound has a hold on you." };
+    return { label: "Balanced", desc: "A home base, with regular detours." };
+  }
+
+  const isStale = () => state.status === "results" &&
+    (state.tracks.length !== state.analyzedIds.length || state.tracks.some((t, i) => t.track_id !== state.analyzedIds[i]));
+
+  /* ==========================================================================
+     API
+     ========================================================================== */
+  async function request(path, options = {}) {
+    let res;
+    try {
+      res = await fetch(API_BASE + path, options);
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      const e = new Error("Couldn't reach the server. Is the API running?");
+      e.network = true;
+      throw e;
+    }
+    if (!res.ok) {
+      let detail = "";
+      try { const body = await res.json(); if (typeof body.detail === "string") detail = body.detail; } catch (_) {}
+      throw new Error(detail || `The server answered with an error (${res.status}).`);
+    }
+    return res.json();
+  }
+  const api = {
+    search: (q, signal) => request(`/api/search?q=${encodeURIComponent(q)}&limit=${SEARCH_LIMIT}`, { signal }),
+    tasteProfile: (ids) => request("/api/taste-profile", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ track_ids: ids }),
+    }),
+    soundMap: () => request(`/api/sound-map?n=${SOUND_MAP_SAMPLE}`),
+    health: () => request("/api/health"),
+  };
+
+  /* ==========================================================================
+     Album art (Spotify oEmbed), cached in memory. Falls back to the
+     persona-tinted placeholder if the request fails or is blocked.
+     ========================================================================== */
+  const artRequests = new Map();
+  const artUrls = new Map();
+  function getArt(trackId) {
+    if (!artRequests.has(trackId)) {
+      const url = `https://open.spotify.com/oembed?url=spotify:track:${encodeURIComponent(trackId)}`;
+      artRequests.set(trackId, fetch(url)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => { const u = (j && j.thumbnail_url) || null; if (u) artUrls.set(trackId, u); return u; })
+        .catch(() => null));
+    }
+    return artRequests.get(trackId);
+  }
+  function artHtml(trackId, persona) {
+    const known = artUrls.get(trackId);
+    return `<span class="art ${known ? "has-art" : ""}" style="--c:${colorOf(persona)}" ${known ? "" : `data-art="${esc(trackId)}"`}>` +
+      (known ? `<img src="${esc(known)}" alt="" decoding="async">` : "") + `</span>`;
+  }
+  function hydrateArt(root) {
+    root.querySelectorAll("[data-art]").forEach((box) => {
+      const id = box.dataset.art;
+      box.removeAttribute("data-art");
+      getArt(id).then((url) => {
+        if (!url || !box.isConnected) return;
+        const img = new Image();
+        img.alt = "";
+        img.decoding = "async";
+        img.onload = () => { box.appendChild(img); requestAnimationFrame(() => box.classList.add("has-art")); };
+        img.src = url;
       });
+    });
+  }
 
-      const currentSum = items.reduce((sum, item) => sum + item.floor, 0);
-      let diff = 100 - currentSum;
+  /* ==========================================================================
+     Search (combobox)
+     ========================================================================== */
+  let searchTimer = null;
+  let searchController = null;
+  let searchSeq = 0;
 
-      // Sort descending by remainder
-      items.sort((a, b) => b.remainder - a.remainder);
+  function onSearchInput() {
+    const q = el.searchInput.value.trim();
+    clearTimeout(searchTimer);
+    if (!q) { closeSearch(); return; }
+    state.search.query = q;
+    if (!state.search.results.length) state.search.status = "loading";
+    openSearch();
+    renderSearch();
+    searchTimer = setTimeout(() => runSearch(q), SEARCH_DEBOUNCE_MS);
+  }
 
-      for (let i = 0; i < diff; i++) {
-        items[i % items.length].floor += 1;
-      }
-
-      const res = {};
-      items.forEach(it => {
-        res[it.key] = it.floor;
-      });
-      return res;
+  async function runSearch(q) {
+    if (searchController) searchController.abort();
+    searchController = new AbortController();
+    const seq = ++searchSeq;
+    try {
+      const results = await api.search(q, searchController.signal);
+      if (seq !== searchSeq) return;
+      state.search.results = Array.isArray(results) ? results : [];
+      state.search.status = "done";
+      state.search.active = -1;
+    } catch (err) {
+      if (err.name === "AbortError" || seq !== searchSeq) return;
+      state.search.results = [];
+      state.search.status = "error";
     }
-
-    /* ==========================================================================
-       MOCK FIXTURES (?mock=1)
-       ========================================================================== */
-    const MOCK_FIXTURE = {
-      soundMap: {
-        explained_variance: [0.343, 0.175],
-        points: (function() {
-          const names = Object.keys(PERSONA_HEX);
-          const pts = [];
-          for (let i = 0; i < 2000; i++) {
-            const persona = names[i % names.length];
-            const angle = Math.random() * Math.PI * 2;
-            const r = Math.random() * 6;
-            const cx = (names.indexOf(persona) - 3) * 2;
-            const cy = (names.indexOf(persona) % 2 === 0 ? 1 : -1) * 2.5;
-            pts.push({
-              pca_x: +(cx + Math.cos(angle) * r).toFixed(3),
-              pca_y: +(cy + Math.sin(angle) * r).toFixed(3),
-              persona: persona
-            });
-          }
-          return pts;
-        })()
-      },
-      searchCatalog: [
-        { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", album_name: "A Night at the Opera", track_genre: "classic rock", persona: "Driven Alt & Punk" },
-        { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", album_name: "Jazz", track_genre: "glam rock", persona: "Bright Pop & Groove" },
-        { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", album_name: "DAMN.", track_genre: "hip-hop", persona: "Vocal & Rhythmic" },
-        { track_id: "mock_4", track_name: "One More Time", artists: "Daft Punk", album_name: "Discovery", track_genre: "electronic", persona: "Synth & Club" },
-        { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", album_name: "WHEN WE ALL FALL ASLEEP", track_genre: "electropop", persona: "Bright Pop & Groove" },
-        { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", album_name: "For Emma, Forever Ago", track_genre: "indie folk", persona: "Unplugged & Intimate" },
-        { track_id: "mock_7", track_name: "Weightless", artists: "Marconi Union", album_name: "Weightless", track_genre: "ambient", persona: "Ambient & Drone" },
-        { track_id: "mock_8", track_name: "Smells Like Teen Spirit", artists: "Nirvana", album_name: "Nevermind", track_genre: "grunge", persona: "Heavy & Live" }
-      ],
-      tasteProfile: {
-        persona_breakdown: {
-          "Bright Pop & Groove": 0.40,
-          "Vocal & Rhythmic": 0.30,
-          "Driven Alt & Punk": 0.20,
-          "Unplugged & Intimate": 0.10
-        },
-        diversity_score: 0.58,
-        percentiles: {
-          danceability: 74.2,
-          energy: 68.5,
-          valence: 54.0,
-          acousticness: 28.1
-        },
-        recommendations: [
-          { track_id: "rec_1", track_name: "Levitating", artists: "Dua Lipa", album_name: "Future Nostalgia" },
-          { track_id: "rec_2", track_name: "Blinding Lights", artists: "The Weeknd", album_name: "After Hours" },
-          { track_id: "rec_3", track_name: "Get Lucky", artists: "Daft Punk ft. Pharrell", album_name: "Random Access Memories" }
-        ],
-        user_songs: [
-          { track_id: "mock_2", track_name: "Don't Stop Me Now", artists: "Queen", pca_x: 2.1, pca_y: 1.4, persona: "Bright Pop & Groove" },
-          { track_id: "mock_3", track_name: "HUMBLE.", artists: "Kendrick Lamar", pca_x: -1.8, pca_y: -0.5, persona: "Vocal & Rhythmic" },
-          { track_id: "mock_5", track_name: "Bad Guy", artists: "Billie Eilish", pca_x: 3.4, pca_y: 0.8, persona: "Bright Pop & Groove" },
-          { track_id: "mock_1", track_name: "Bohemian Rhapsody", artists: "Queen", pca_x: -0.9, pca_y: 3.1, persona: "Driven Alt & Punk" },
-          { track_id: "mock_6", track_name: "Skinny Love", artists: "Bon Iver", pca_x: -4.2, pca_y: -2.3, persona: "Unplugged & Intimate" }
-        ]
-      }
-    };
-
-    /* ==========================================================================
-       API CLIENT
-       ========================================================================== */
-
-    async function fetchSoundMap() {
-      if (IS_MOCK) {
-        return MOCK_FIXTURE.soundMap;
-      }
-      try {
-        const res = await fetch(`${API_BASE}/api/sound-map?n=6000`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      } catch (err) {
-        console.warn("Sound map API failed, using fallback points:", err);
-        return MOCK_FIXTURE.soundMap;
-      }
-    }
-
-    async function searchTracksApi(query) {
-      if (!query || !query.trim()) return [];
-      if (IS_MOCK) {
-        const q = query.toLowerCase();
-        return MOCK_FIXTURE.searchCatalog.filter(t =>
-          t.track_name.toLowerCase().includes(q) ||
-          t.artists.toLowerCase().includes(q) ||
-          t.track_genre.toLowerCase().includes(q)
-        );
-      }
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=8`);
-      if (!res.ok) throw new Error(`Search failed: HTTP ${res.status}`);
-      return await res.json();
-    }
-
-    async function analyzeTasteApi(trackIds) {
-      if (IS_MOCK) {
-        await new Promise(r => setTimeout(r, 450));
-        return MOCK_FIXTURE.tasteProfile;
-      }
-      const res = await fetch(`${API_BASE}/api/taste-profile`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ track_ids: trackIds })
-      });
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        const msg = errJson && errJson.detail ? errJson.detail : `Server error: HTTP ${res.status}`;
-        const err = new Error(msg);
-        err.status = res.status;
-        throw err;
-      }
-      return await res.json();
-    }
-
-    /* ==========================================================================
-       RENDER FUNCTIONS (Pure State -> DOM)
-       ========================================================================== */
-
-    // 1. Sidebar Selected Tracks List
-    function renderSelectedTracks() {
-      const count = state.selectedTracks.length;
-      el.trackCountBadge.textContent = `${count} / 20`;
-      el.analyzeBtn.disabled = count === 0 || state.status === "loading";
-      el.clearAllBtn.disabled = count === 0 || state.status === "loading";
-
-      if (count === 0) {
-        el.selectedList.innerHTML = `
-          <li class="empty-tracks-placeholder">
-            Add 1 to 20 tracks to analyze your sound distribution.
-          </li>
-        `;
-        return;
-      }
-
-      el.selectedList.innerHTML = state.selectedTracks.map((tr, idx) => {
-        const dotColor = PERSONA_COLORS[tr.persona] || "var(--text-3)";
-        return `
-          <li class="selected-track-item" data-index="${idx}">
-            <span class="track-persona-dot" style="background-color: ${dotColor};"></span>
-            <div class="selected-track-info">
-              <span class="selected-track-name" title="${escapeHtml(tr.track_name)}">${escapeHtml(tr.track_name)}</span>
-              <span class="selected-track-artist">${escapeHtml(tr.artists)}</span>
-            </div>
-            <button class="remove-track-btn" data-track-id="${escapeHtml(tr.track_id)}" aria-label="Remove ${escapeHtml(tr.track_name)}">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </li>
-        `;
-      }).join("");
-    }
-
-    // 2. Summary KPI Row
-    function renderSummaryRow() {
-      if (state.status === "initial") {
-        el.topPersonaContainer.innerHTML = `<span style="color: var(--text-3); font-weight: 400; font-size: 14px;">—</span>`;
-        el.topPersonaSubtext.textContent = "Awaiting analysis";
-        el.diversityVal.textContent = "—";
-        el.diversityLabel.textContent = "—";
-        el.lowSampleWarning.style.display = "none";
-        el.tracksMatchedVal.textContent = "—";
-        return;
-      }
-
-      if (state.status === "loading") {
-        el.topPersonaContainer.innerHTML = `<div class="skeleton" style="width: 140px; height: 22px;"></div>`;
-        el.topPersonaSubtext.innerHTML = `<div class="skeleton" style="width: 80px; height: 14px; margin-top: 4px;"></div>`;
-        el.diversityVal.innerHTML = `<div class="skeleton" style="width: 60px; height: 32px;"></div>`;
-        el.diversityLabel.textContent = "";
-        el.lowSampleWarning.style.display = "none";
-        el.tracksMatchedVal.innerHTML = `<div class="skeleton" style="width: 70px; height: 32px;"></div>`;
-        return;
-      }
-
-      if (state.status === "results" && state.tasteProfile) {
-        const prof = state.tasteProfile;
-        const breakdown = prof.persona_breakdown || {};
-        const roundedPcts = roundPercentagesTo100(breakdown);
-
-        // Find dominant persona
-        let topName = "—";
-        let topPct = 0;
-        let maxVal = -1;
-        for (const [name, frac] of Object.entries(breakdown)) {
-          if (frac > maxVal) {
-            maxVal = frac;
-            topName = name;
-            topPct = roundedPcts[name] || Math.round(frac * 100);
-          }
-        }
-
-        const topColor = PERSONA_COLORS[topName] || "var(--accent)";
-        el.topPersonaContainer.innerHTML = `
-          <span class="track-persona-dot" style="background-color: ${topColor}; width: 8px; height: 8px;"></span>
-          <span>${escapeHtml(topName)}</span>
-        `;
-        el.topPersonaSubtext.textContent = `${topPct}% of your analyzed taste`;
-
-        // Diversity Score
-        const dScore = prof.diversity_score;
-        el.diversityVal.textContent = dScore.toFixed(2);
-        let dLabel = "Focused";
-        if (dScore >= 0.35 && dScore <= 0.65) dLabel = "Balanced";
-        else if (dScore > 0.65) dLabel = "Eclectic";
-        el.diversityLabel.textContent = dLabel;
-
-        const matchedCount = (prof.user_songs || []).length;
-        el.lowSampleWarning.style.display = matchedCount < 5 ? "inline" : "none";
-
-        // Tracks Matched
-        el.tracksMatchedVal.textContent = `${matchedCount} of ${state.selectedTracks.length}`;
-      }
-    }
-
-    // 3. Audio Traits Percentiles & Recommendations
-    function renderBottomRow() {
-      if (state.status === "initial") {
-        ["danceability", "energy", "valence", "acousticness"].forEach(tr => {
-          document.getElementById(`trait-${tr}`).style.width = "0%";
-          document.getElementById(`trait-${tr}-val`).textContent = "—";
-        });
-        el.recList.innerHTML = `
-          <li class="rec-item" style="color: var(--text-3); font-size: 12px; background: transparent; border: none; padding: 16px 0;">
-            Run an analysis to discover songs matching your primary sound persona.
-          </li>
-        `;
-        return;
-      }
-
-      if (state.status === "loading") {
-        ["danceability", "energy", "valence", "acousticness"].forEach(tr => {
-          document.getElementById(`trait-${tr}`).style.width = "20%";
-          document.getElementById(`trait-${tr}-val`).innerHTML = `<div class="skeleton" style="width: 32px; height: 16px; margin-left: auto;"></div>`;
-        });
-        el.recList.innerHTML = [1, 2, 3].map(() => `
-          <li class="rec-item">
-            <div class="skeleton" style="width: 140px; height: 16px; margin-bottom: 4px;"></div>
-            <div class="skeleton" style="width: 100px; height: 12px;"></div>
-          </li>
-        `).join("");
-        return;
-      }
-
-      if (state.status === "results" && state.tasteProfile) {
-        const pct = state.tasteProfile.percentiles || {};
-        ["danceability", "energy", "valence", "acousticness"].forEach(tr => {
-          const val = pct[tr] !== undefined ? pct[tr] : 0;
-          document.getElementById(`trait-${tr}`).style.width = `${Math.min(100, Math.max(0, val))}%`;
-          document.getElementById(`trait-${tr}-val`).textContent = `${Math.round(val)}th`;
-        });
-
-        const recs = state.tasteProfile.recommendations || [];
-        if (recs.length === 0) {
-          el.recList.innerHTML = `<li class="rec-item" style="color: var(--text-3);">No recommendation matches found.</li>`;
-        } else {
-          el.recList.innerHTML = recs.map(r => `
-            <li class="rec-item">
-              <span class="rec-track-name" title="${escapeHtml(r.track_name)}">${escapeHtml(r.track_name)}</span>
-              <span class="rec-track-meta">${escapeHtml(r.artists)} · ${escapeHtml(r.album_name || "")}</span>
-            </li>
-          `).join("");
-        }
-      }
-    }
-
-    // 4. SVG Donut Chart Renderer
-    function renderDonutChart() {
-      const breakdown = (state.tasteProfile && state.tasteProfile.persona_breakdown) || {};
-      const entries = Object.entries(breakdown).filter(([_, frac]) => frac > 0);
-
-      // Sort descending by share
-      entries.sort((a, b) => b[1] - a[1]);
-
-      if (state.status === "initial" || entries.length === 0) {
-        el.donutSvg.innerHTML = `
-          <circle cx="120" cy="120" r="85" fill="none" stroke="var(--surface-raised)" stroke-width="22" opacity="0.4"/>
-        `;
-        el.donutCenterPct.textContent = "—";
-        el.donutCenterName.textContent = "Awaiting tracks";
-        el.donutLegend.innerHTML = `
-          <li style="color: var(--text-3); font-size: 12px; text-align: center; padding: 12px 0;">
-            Distribution splits will display here.
-          </li>
-        `;
-        return;
-      }
-
-      const roundedPcts = roundPercentagesTo100(breakdown);
-      const circumference = 2 * Math.PI * 85; // ~534.07
-      const gap = 2; // small 2px visual gap between segments
-
-      let currentOffset = 0;
-      let svgHtml = "";
-
-      entries.forEach(([name, frac]) => {
-        const pct = roundedPcts[name] || Math.round(frac * 100);
-        const segmentLength = (pct / 100) * circumference;
-        const dashArrayVal = Math.max(0, segmentLength - gap);
-        const color = PERSONA_HEX[name] || "#7CC4F5";
-
-        svgHtml += `
-          <circle
-            class="donut-segment"
-            cx="120"
-            cy="120"
-            r="85"
-            fill="none"
-            stroke="${color}"
-            stroke-width="22"
-            stroke-dasharray="${dashArrayVal.toFixed(2)} ${(circumference - dashArrayVal).toFixed(2)}"
-            stroke-dashoffset="${(-currentOffset).toFixed(2)}"
-            data-persona="${escapeHtml(name)}"
-            data-pct="${pct}"
-          />
-        `;
-        currentOffset += segmentLength;
-      });
-
-      el.donutSvg.innerHTML = svgHtml;
-
-      // Default Center Text: Dominant Persona
-      const dominantName = entries[0][0];
-      const dominantPct = roundedPcts[dominantName];
-      setDonutCenter(dominantPct, dominantName);
-
-      // Donut Legend
-      el.donutLegend.innerHTML = entries.map(([name, frac]) => {
-        const pct = roundedPcts[name] || Math.round(frac * 100);
-        const color = PERSONA_COLORS[name] || "var(--accent)";
-        const isActive = state.highlightedPersona === name ? "active" : "";
-        return `
-          <li class="legend-item ${isActive}" data-persona="${escapeHtml(name)}" data-pct="${pct}">
-            <div class="legend-left">
-              <span class="track-persona-dot" style="background-color: ${color};"></span>
-              <span class="legend-name">${escapeHtml(name)}</span>
-            </div>
-            <span class="legend-pct tabular-nums">${pct}%</span>
-          </li>
-        `;
-      }).join("");
-
-      // Attach segment & legend hover interactions
-      attachDonutInteractions(dominantPct, dominantName);
-    }
-
-    function setDonutCenter(pct, name) {
-      el.donutCenterPct.textContent = `${pct}%`;
-      el.donutCenterName.textContent = name;
-    }
-
-    function attachDonutInteractions(defaultPct, defaultName) {
-      const segments = el.donutSvg.querySelectorAll(".donut-segment");
-      const legendItems = el.donutLegend.querySelectorAll(".legend-item");
-
-      function handleHover(persona, pct) {
-        setDonutCenter(pct, persona);
-        state.highlightedPersona = persona;
-        legendItems.forEach(li => {
-          if (li.getAttribute("data-persona") === persona) li.classList.add("active");
-          else li.classList.remove("active");
-        });
-        drawCanvas();
-      }
-
-      function handleLeave() {
-        setDonutCenter(defaultPct, defaultName);
-        state.highlightedPersona = null;
-        legendItems.forEach(li => li.classList.remove("active"));
-        drawCanvas();
-      }
-
-      segments.forEach(seg => {
-        seg.addEventListener("mouseenter", () => {
-          handleHover(seg.getAttribute("data-persona"), seg.getAttribute("data-pct"));
-        });
-        seg.addEventListener("mouseleave", handleLeave);
-      });
-
-      legendItems.forEach(item => {
-        item.addEventListener("mouseenter", () => {
-          handleHover(item.getAttribute("data-persona"), item.getAttribute("data-pct"));
-        });
-        item.addEventListener("mouseleave", handleLeave);
-      });
-    }
-
-    // 5. HTML Canvas Scatter Plot Renderer
-    let canvasBounds = { minX: -6.5, maxX: 15.0, minY: -9.5, maxY: 4.5 };
-    let cachedUserScreenCoords = [];
-
-    function updateCanvasBounds(points, userPoints) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      const all = points.concat(userPoints || []);
-      if (all.length === 0) return;
-
-      for (let i = 0; i < all.length; i++) {
-        const p = all[i];
-        if (p.pca_x < minX) minX = p.pca_x;
-        if (p.pca_x > maxX) maxX = p.pca_x;
-        if (p.pca_y < minY) minY = p.pca_y;
-        if (p.pca_y > maxY) maxY = p.pca_y;
-      }
-
-      // Add 6% comfortable padding
-      const padX = (maxX - minX) * 0.06 || 1;
-      const padY = (maxY - minY) * 0.06 || 1;
-      canvasBounds = {
-        minX: minX - padX,
-        maxX: maxX + padX,
-        minY: minY - padY,
-        maxY: maxY + padY
-      };
-    }
-
-    function initCanvasResolution() {
-      const rect = el.canvasContainer.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      el.canvas.width = rect.width * dpr;
-      el.canvas.height = rect.height * dpr;
-      el.canvas.style.width = `${rect.width}px`;
-      el.canvas.style.height = `${rect.height}px`;
-      const ctx = el.canvas.getContext("2d");
-      ctx.resetTransform();
-      ctx.scale(dpr, dpr);
-    }
-
-    function drawCanvas() {
-      const ctx = el.canvas.getContext("2d");
-      const rect = el.canvasContainer.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
-
-      if (!width || !height) return;
-
-      ctx.clearRect(0, 0, width, height);
-
-      // Faint subtle 1px gridlines
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
-
-      const gridCols = 4;
-      const gridRows = 4;
-      for (let i = 1; i < gridCols; i++) {
-        const gx = (width / gridCols) * i;
-        ctx.beginPath();
-        ctx.moveTo(gx, 0);
-        ctx.lineTo(gx, height);
-        ctx.stroke();
-      }
-      for (let j = 1; j < gridRows; j++) {
-        const gy = (height / gridRows) * j;
-        ctx.beginPath();
-        ctx.moveTo(0, gy);
-        ctx.lineTo(width, gy);
-        ctx.stroke();
-      }
-
-      const points = (state.soundMapData && state.soundMapData.points) || [];
-      const userSongs = (state.tasteProfile && state.tasteProfile.user_songs) || [];
-      const isInitial = state.status === "initial" || state.status === "loading";
-
-      // Coordinate mapper
-      function toScreenX(x) {
-        return ((x - canvasBounds.minX) / (canvasBounds.maxX - canvasBounds.minX)) * width;
-      }
-      function toScreenY(y) {
-        return height - ((y - canvasBounds.minY) / (canvasBounds.maxY - canvasBounds.minY)) * height;
-      }
-
-      // Draw background points
-      if (isInitial) {
-        // Initial Neutral State: all points --text-3 at low alpha (~0.2)
-        ctx.fillStyle = "#66737F";
-        ctx.globalAlpha = 0.22;
-        for (let i = 0; i < points.length; i++) {
-          const pt = points[i];
-          const sx = toScreenX(pt.pca_x);
-          const sy = toScreenY(pt.pca_y);
-          ctx.beginPath();
-          ctx.arc(sx, sy, 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1.0;
-        el.initialOverlay.style.display = "block";
-      } else {
-        el.initialOverlay.style.display = "none";
-        const highPersona = state.highlightedPersona;
-
-        // Draw background points with persona colors
-        for (let i = 0; i < points.length; i++) {
-          const pt = points[i];
-          const color = PERSONA_HEX[pt.persona] || "#7CC4F5";
-          const isMatch = !highPersona || pt.persona === highPersona;
-
-          ctx.fillStyle = color;
-          ctx.globalAlpha = highPersona ? (isMatch ? 0.85 : 0.08) : 0.35;
-
-          const sx = toScreenX(pt.pca_x);
-          const sy = toScreenY(pt.pca_y);
-          ctx.beginPath();
-          ctx.arc(sx, sy, 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Draw user songs (6px dots, full opacity, 1.5px --text-1 ring)
-        cachedUserScreenCoords = [];
-        for (let j = 0; j < userSongs.length; j++) {
-          const u = userSongs[j];
-          const sx = toScreenX(u.pca_x);
-          const sy = toScreenY(u.pca_y);
-          const color = PERSONA_HEX[u.persona] || "#7CC4F5";
-          const isMatch = !highPersona || u.persona === highPersona;
-
-          cachedUserScreenCoords.push({
-            x: sx,
-            y: sy,
-            radius: 6,
-            song: u
-          });
-
-          ctx.globalAlpha = highPersona ? (isMatch ? 1.0 : 0.2) : 1.0;
-
-          // Outer 1.5px ring
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = "#E8EEF3";
-          ctx.beginPath();
-          ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // Dot Fill
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1.0;
-      }
-    }
-
-    // Canvas Mouse Interaction for User Song Tooltips
-    function attachCanvasEvents() {
-      el.canvas.addEventListener("mousemove", (e) => {
-        if (state.status !== "results") {
-          el.canvasTooltip.style.display = "none";
-          return;
-        }
-
-        const rect = el.canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-
-        let hit = null;
-        for (let i = 0; i < cachedUserScreenCoords.length; i++) {
-          const u = cachedUserScreenCoords[i];
-          const dx = mx - u.x;
-          const dy = my - u.y;
-          if (dx * dx + dy * dy <= 8 * 8) { // 8px hit radius
-            hit = u;
-            break;
-          }
-        }
-
-        if (hit) {
-          const s = hit.song;
-          const dotColor = PERSONA_COLORS[s.persona] || "var(--accent)";
-          el.canvasTooltip.innerHTML = `
-            <div class="tt-name">${escapeHtml(s.track_name)}</div>
-            <div class="tt-artist">${escapeHtml(s.artists)}</div>
-            <div class="tt-persona">
-              <span class="track-persona-dot" style="background-color: ${dotColor};"></span>
-              <span>${escapeHtml(s.persona)}</span>
-            </div>
-          `;
-          el.canvasTooltip.style.display = "block";
-
-          // Tooltip position clamped to canvas bounds
-          const tipW = 200;
-          let tipX = hit.x + 12;
-          if (tipX + tipW > rect.width) tipX = hit.x - tipW - 12;
-          let tipY = hit.y - 30;
-          if (tipY < 10) tipY = hit.y + 12;
-
-          el.canvasTooltip.style.left = `${tipX}px`;
-          el.canvasTooltip.style.top = `${tipY}px`;
-        } else {
-          el.canvasTooltip.style.display = "none";
-        }
-      });
-
-      el.canvas.addEventListener("mouseleave", () => {
-        el.canvasTooltip.style.display = "none";
-      });
-    }
-
-    /* ==========================================================================
-       AUTOCOMPLETE SEARCH LOGIC
-       ========================================================================== */
-    let searchDebounceTimer = null;
-
-    function handleSearchInput(e) {
-      const q = e.target.value.trim();
-      clearTimeout(searchDebounceTimer);
-
-      if (!q) {
-        closeSearchDropdown();
-        return;
-      }
-
-      searchDebounceTimer = setTimeout(async () => {
-        try {
-          const results = await searchTracksApi(q);
-          state.searchResults = results || [];
-          state.searchDropdownIndex = -1;
-          renderSearchDropdown(q);
-        } catch (err) {
-          console.error("Search failed:", err);
-          state.searchResults = [];
-          renderSearchDropdown(q);
-        }
-      }, 200);
-    }
-
-    function renderSearchDropdown(query) {
-      if (!state.searchResults || state.searchResults.length === 0) {
-        el.searchDropdown.innerHTML = `<div class="search-empty">No tracks match '${escapeHtml(query)}'</div>`;
-        el.searchDropdown.classList.add("open");
-        return;
-      }
-
-      el.searchDropdown.innerHTML = state.searchResults.map((item, idx) => `
-        <div class="search-result-item ${idx === state.searchDropdownIndex ? 'selected' : ''}" data-idx="${idx}" role="option">
-          <span class="search-result-name">${escapeHtml(item.track_name)}</span>
-          <span class="search-result-meta">${escapeHtml(item.artists)} · ${escapeHtml(item.track_genre || item.persona || "")}</span>
-        </div>
-      `).join("");
-      el.searchDropdown.classList.add("open");
-    }
-
-    function closeSearchDropdown() {
-      el.searchDropdown.classList.remove("open");
-      state.searchDropdownIndex = -1;
-      state.searchResults = [];
-    }
-
-    function addTrackToSelection(track) {
-      if (state.selectedTracks.length >= 20) {
-        return; // Capped at 20
-      }
-      // Deduplicate by track_id
-      const exists = state.selectedTracks.some(t => t.track_id === track.track_id);
-      if (!exists) {
-        state.selectedTracks.push(track);
-        renderSelectedTracks();
-      }
-      el.searchInput.value = "";
-      closeSearchDropdown();
-    }
-
-    function removeTrackFromSelection(trackId) {
-      state.selectedTracks = state.selectedTracks.filter(t => t.track_id !== trackId);
-      renderSelectedTracks();
-    }
-
-    /* ==========================================================================
-       ANALYSIS DISPATCHER
-       ========================================================================== */
-    async function triggerAnalysis() {
-      if (state.selectedTracks.length === 0) return;
-
-      state.status = "loading";
-      el.statusBanner.className = "status-banner"; // Hide error
-      renderSummaryRow();
-      renderBottomRow();
-      renderDonutChart();
-      drawCanvas();
-
-      const startTime = Date.now();
-      const trackIds = state.selectedTracks.map(t => t.track_id);
-
-      try {
-        const profile = await analyzeTasteApi(trackIds);
-
-        // Guarantee min 300ms loading skeleton per requirements
-        const elapsed = Date.now() - startTime;
-        if (elapsed < 300) {
-          await new Promise(r => setTimeout(r, 300 - elapsed));
-        }
-
-        state.tasteProfile = profile;
-        state.status = "results";
-
-        // Update canvas bounds with user tracks included
-        const pts = (state.soundMapData && state.soundMapData.points) || [];
-        updateCanvasBounds(pts, profile.user_songs || []);
-
-        renderSummaryRow();
-        renderBottomRow();
-        renderDonutChart();
-        drawCanvas();
-      } catch (err) {
-        state.status = "error";
-        state.errorMessage = err.message || "Failed to analyze tracks";
-        el.statusBannerText.textContent = state.errorMessage;
-        el.statusBanner.className = "status-banner error";
-        renderSummaryRow();
-        renderBottomRow();
-        renderDonutChart();
-        drawCanvas();
-      }
-    }
-
-    /* ==========================================================================
-       EVENT WIRING & INITIALIZATION
-       ========================================================================== */
-    function wireEvents() {
-      // Search input events
-      el.searchInput.addEventListener("input", handleSearchInput);
-
-      el.searchInput.addEventListener("keydown", (e) => {
-        if (!el.searchDropdown.classList.contains("open")) return;
-        const total = state.searchResults.length;
-
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          state.searchDropdownIndex = (state.searchDropdownIndex + 1) % total;
-          renderSearchDropdown(el.searchInput.value);
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          state.searchDropdownIndex = (state.searchDropdownIndex - 1 + total) % total;
-          renderSearchDropdown(el.searchInput.value);
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          if (state.searchDropdownIndex >= 0 && state.searchResults[state.searchDropdownIndex]) {
-            addTrackToSelection(state.searchResults[state.searchDropdownIndex]);
-          }
-        } else if (e.key === "Escape") {
-          closeSearchDropdown();
-        }
-      });
-
-      // Search item click delegation
-      el.searchDropdown.addEventListener("click", (e) => {
-        const item = e.target.closest(".search-result-item");
-        if (item) {
-          const idx = parseInt(item.getAttribute("data-idx"), 10);
-          if (state.searchResults[idx]) {
-            addTrackToSelection(state.searchResults[idx]);
-          }
-        }
-      });
-
-      // Close dropdown when clicking outside
-      document.addEventListener("click", (e) => {
-        if (!e.target.closest(".search-container")) {
-          closeSearchDropdown();
-        }
-      });
-
-      // Remove track delegation
-      el.selectedList.addEventListener("click", (e) => {
-        const btn = e.target.closest(".remove-track-btn");
-        if (btn) {
-          const id = btn.getAttribute("data-track-id");
-          removeTrackFromSelection(id);
-        }
-      });
-
-      // Primary buttons
-      el.analyzeBtn.addEventListener("click", triggerAnalysis);
-
-      el.clearAllBtn.addEventListener("click", () => {
-        state.selectedTracks = [];
-        state.tasteProfile = null;
-        state.status = "initial";
-        el.statusBanner.className = "status-banner";
-        renderSelectedTracks();
-        renderSummaryRow();
-        renderBottomRow();
-        renderDonutChart();
-        drawCanvas();
-      });
-
-      el.bannerRetryBtn.addEventListener("click", triggerAnalysis);
-
-      // Canvas resize handling
-      window.addEventListener("resize", () => {
-        initCanvasResolution();
-        drawCanvas();
-      });
-
-      attachCanvasEvents();
-    }
-
-    async function init() {
-      wireEvents();
-      initCanvasResolution();
-
-      renderSelectedTracks();
-      renderSummaryRow();
-      renderBottomRow();
-      renderDonutChart();
-
-      // Fetch background sound map
-      try {
-        const mapData = await fetchSoundMap();
-        state.soundMapData = mapData;
-        if (mapData.explained_variance) {
-          const v1 = Math.round(mapData.explained_variance[0] * 100);
-          const v2 = Math.round(mapData.explained_variance[1] * 100);
-          el.axisComp1.textContent = `Component 1 (${v1}%)`;
-          el.axisComp2.textContent = `Component 2 (${v2}%)`;
-        }
-        updateCanvasBounds(mapData.points || [], []);
-        drawCanvas();
-      } catch (err) {
-        console.warn("Could not load initial sound map points:", err);
-      }
-
-      // If mock mode is active, pre-populate sample tracks for fast verification
-      if (IS_MOCK) {
-        state.selectedTracks = MOCK_FIXTURE.searchCatalog.slice(0, 5);
-        renderSelectedTracks();
-      }
-    }
-
-    // Bootstrap app once DOM is ready
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", init);
+    renderSearch();
+  }
+
+  function openSearch() {
+    el.searchPop.hidden = false;
+    el.searchInput.setAttribute("aria-expanded", "true");
+  }
+  function closeSearch() {
+    clearTimeout(searchTimer);
+    if (searchController) searchController.abort();
+    searchSeq++;
+    el.searchPop.hidden = true;
+    el.searchInput.setAttribute("aria-expanded", "false");
+    el.searchInput.removeAttribute("aria-activedescendant");
+    state.search = { query: "", results: [], active: -1, status: "idle" };
+  }
+
+  const isSelected = (id) => state.tracks.some((t) => t.track_id === id);
+  const isFull = () => state.tracks.length >= MAX_TRACKS;
+
+  function renderSearch() {
+    const { results, status, query, active } = state.search;
+    let msg = "";
+    if (status === "error") msg = "Search isn't responding right now. Check that the API is running, then try again.";
+    else if (status === "loading" && !results.length) msg = "Searching…";
+    else if (status === "done" && !results.length) msg = `No songs match <strong>“${esc(query)}”</strong>. Try the artist's name, or fewer words.`;
+    else if (isFull()) msg = `You've added ${MAX_TRACKS} songs, the most one analysis takes. Remove one to add another.`;
+    el.searchMsg.innerHTML = msg;
+    el.searchMsg.hidden = !msg;
+
+    el.searchOptions.innerHTML = results.map((t, i) => {
+      const added = isSelected(t.track_id);
+      const disabled = added || isFull();
+      return `<li class="option" role="option" id="opt-${i}" data-index="${i}"
+                  aria-selected="${i === active}" ${disabled ? 'aria-disabled="true"' : ""}>
+          <span class="dot" style="--c:${colorOf(t.persona)}" aria-hidden="true"></span>
+          <span class="option-text">
+            <span class="option-name">${esc(t.track_name)}</span>
+            <span class="option-meta">${esc(t.artists)} · ${esc(nameOf(t.persona))}</span>
+          </span>
+          <span class="option-tag">${added ? "Added" : ""}</span>
+        </li>`;
+    }).join("");
+
+    if (active >= 0) {
+      el.searchInput.setAttribute("aria-activedescendant", `opt-${active}`);
+      const opt = document.getElementById(`opt-${active}`);
+      if (opt) opt.scrollIntoView({ block: "nearest" });
     } else {
-      init();
+      el.searchInput.removeAttribute("aria-activedescendant");
     }
+  }
+
+  function onSearchKeydown(e) {
+    const open = !el.searchPop.hidden;
+    const { results } = state.search;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!open || !results.length) return;
+      e.preventDefault();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      state.search.active = (state.search.active + step + results.length) % results.length;
+      renderSearch();
+    } else if (e.key === "Enter") {
+      if (!open || !results.length) return;
+      e.preventDefault();
+      pickResult(state.search.active >= 0 ? state.search.active : 0);
+    } else if (e.key === "Escape") {
+      if (open) { e.preventDefault(); closeSearch(); }
+      else if (el.searchInput.value) { el.searchInput.value = ""; }
+    }
+  }
+
+  function pickResult(index) {
+    const track = state.search.results[index];
+    if (!track || isSelected(track.track_id) || isFull()) return;
+    state.tracks.push({
+      track_id: track.track_id, track_name: track.track_name, artists: track.artists,
+      album_name: track.album_name, persona: track.persona,
+    });
+    el.searchInput.value = "";
+    closeSearch();
+    el.searchInput.focus();
+    renderRail();
+    renderMain();
+    announce(`Added ${track.track_name}. ${state.tracks.length} of ${MAX_TRACKS} songs.`);
+  }
+
+  /* ==========================================================================
+     Sidebar
+     ========================================================================== */
+  function renderRail() {
+    const n = state.tracks.length;
+    el.songCount.textContent = `${n} / ${MAX_TRACKS}`;
+    const hints = [];
+    if (n > 0 && n < SUGGESTED_MIN_TRACKS) hints.push(`Add ${SUGGESTED_MIN_TRACKS - n} more for a steadier read.`);
+    if (n >= MAX_TRACKS) hints.push("That's the most one analysis takes.");
+    if (isStale()) hints.push("Changed since your last analysis. Analyze again to update.");
+    el.songHint.innerHTML = hints.map((h) => `<span style="display:block">${esc(h)}</span>`).join("");
+    $("#bar-count").textContent = n ? `${n} of ${MAX_TRACKS} songs` : "No songs yet";
+
+    const loading = state.status === "loading";
+    el.analyzeBtn.disabled = n === 0 || loading;
+    el.analyzeBtn.setAttribute("aria-busy", String(loading));
+    el.analyzeBtn.textContent = loading ? "Analyzing…" : "Analyze taste";
+    el.clearBtn.disabled = n === 0 || loading;
+
+    if (!n) {
+      el.songList.innerHTML = `<li class="song-empty">Search for a song or artist above. Pick ${SUGGESTED_MIN_TRACKS} to ${MAX_TRACKS} you'd happily listen to on repeat.</li>`;
+      return;
+    }
+    el.songList.innerHTML = state.tracks.map((t) => `
+      <li class="song" data-id="${esc(t.track_id)}">
+        ${artHtml(t.track_id, t.persona)}
+        <span class="song-text">
+          <span class="song-name" title="${esc(t.track_name)}">${esc(t.track_name)}</span>
+          <span class="song-artist"><span class="dot" style="--c:${colorOf(t.persona)}" aria-hidden="true"></span><span>${esc(t.artists)}</span><span class="sr-only">, ${esc(nameOf(t.persona))}</span></span>
+        </span>
+        <button class="icon-btn" type="button" data-remove="${esc(t.track_id)}" aria-label="Remove ${esc(t.track_name)}">${ICON_X}</button>
+      </li>`).join("");
+    hydrateArt(el.songList);
+    syncLinkedRow();
+  }
+
+  function removeTrack(id) {
+    const idx = state.tracks.findIndex((t) => t.track_id === id);
+    if (idx < 0) return;
+    const [removed] = state.tracks.splice(idx, 1);
+    if (state.hoverTrackId === id) setHoverTrack(null);
+    renderRail();
+    renderMain();
+    // Keep keyboard focus in the list after removing a row.
+    const next = el.songList.querySelectorAll("[data-remove]")[Math.min(idx, state.tracks.length - 1)];
+    (next || el.searchInput).focus();
+    announce(`Removed ${removed.track_name}. ${state.tracks.length} of ${MAX_TRACKS} songs.`);
+  }
+
+  function syncLinkedRow() {
+    el.songList.querySelectorAll(".song").forEach((row) => {
+      const linked = state.hoverSource === "map" && row.dataset.id === state.hoverTrackId;
+      row.classList.toggle("is-linked", linked);
+      if (linked) row.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  /* ==========================================================================
+     Analysis
+     ========================================================================== */
+  let freshResults = false; // true for the first render after an analysis, to play entrances once
+
+  async function analyze() {
+    if (!state.tracks.length || state.status === "loading") return;
+    const ids = state.tracks.map((t) => t.track_id);
+    state.status = "loading";
+    state.error = null;
+    state.focusPersona = null;
+    setHoverTrack(null);
+    renderRail();
+    renderMain();
+    const started = performance.now();
+    try {
+      const profile = await api.tasteProfile(ids);
+      // Hold the skeleton briefly so a fast answer doesn't flash.
+      const wait = 250 - (performance.now() - started);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      state.profile = profile;
+      state.analyzedIds = ids;
+      state.status = "results";
+      freshResults = true;
+    } catch (err) {
+      state.status = "error";
+      state.error = { message: err.message, network: !!err.network };
+    }
+    renderRail();
+    renderMain();
+    freshResults = false;
+    if (state.status === "results") {
+      announce(`Analysis ready. ${el.hero.querySelector(".headline")?.textContent || ""}`);
+    }
+  }
+
+  /* ==========================================================================
+     Main column
+     ========================================================================== */
+  function renderMain() {
+    renderHero();
+    renderMix();
+    el.lower.hidden = !(state.status === "results" || state.status === "loading");
+    if (state.status === "results") {
+      renderCompare();
+      renderRecs();
+    } else if (state.status === "loading") {
+      renderLowerSkeletons();
+    }
+    refreshMap();
+  }
+
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const hexToRgb = (h) => { h = h.replace("#", ""); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+  const relLum = (h) => hexToRgb(h)
+    .map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+    .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const contrastRatio = (a, b) => { const [x, y] = [relLum(a), relLum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+  const mixHex = (a, b, t) => { const A = hexToRgb(a), B = hexToRgb(b); return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join(""); };
+
+  // The top persona's name in the headline is the one place a persona colour is
+  // used as text (headline size only). Keep it >= 3:1 on the ground; lighten if not.
+  function headlineColor(persona) {
+    const base = colorOf(persona), bg = cssVar("--bg") || "#0C1219";
+    let c = base;
+    for (let t = 0.1; contrastRatio(c, bg) < 3 && t <= 1; t += 0.1) c = mixHex(base, "#ffffff", t);
+    return c;
+  }
+
+  function headlineParts(entries) {
+    const [a, b] = entries;
+    if (!a) return { full: "We couldn't place these songs.", compact: "", streak: "" };
+    const A = `<span class="nowrap" style="color:${headlineColor(a.persona)}">${esc(nameOf(a.persona))}</span>`;
+    if (!b) return { full: `All ${A}.`, compact: "", streak: "" };
+    const B = esc(nameOf(b.persona));
+    return {
+      full: `Mostly ${A}, with a streak of <span class="nowrap">${B}</span>.`,
+      compact: `Mostly ${A}.`,
+      streak: `With a streak of ${B}. `,
+    };
+  }
+
+  // At most two lines. Step the size down (to a 34px floor) only when a long name
+  // would need a third line; if even that isn't enough (narrow screens), move the
+  // "streak" clause out of the headline and into the muted line below it.
+  function fitHeadline() {
+    const h = el.hero.querySelector(".headline");
+    if (!h) return;
+    const streak = el.hero.querySelector(".lede-streak");
+    if (h.dataset.full) { h.innerHTML = h.dataset.full; if (streak) streak.hidden = true; }
+    const fit = () => {
+      h.style.fontSize = "";
+      let size = parseFloat(getComputedStyle(h).fontSize);
+      const lines = () => Math.round(h.getBoundingClientRect().height / (size * 1.04));
+      while (lines() > 2 && size > 34) {
+        size -= 2;
+        h.style.fontSize = `${size}px`;
+      }
+      return lines();
+    };
+    if (fit() > 2 && h.dataset.compact) {
+      h.innerHTML = h.dataset.compact;
+      if (streak) streak.hidden = false;
+      fit();
+    }
+  }
+
+  function renderHero() {
+    const { status } = state;
+    if (status === "empty") {
+      el.hero.innerHTML = `
+        <h1 class="headline">What does your music have in common?</h1>
+        <p class="lede">Add ${SUGGESTED_MIN_TRACKS} to ${MAX_TRACKS} songs you love and see which of seven sounds they share.</p>`;
+    } else if (status === "loading") {
+      el.hero.innerHTML = `
+        <span class="sr-only">Analyzing your songs…</span>
+        <span class="skel" style="width:min(720px,90%);height:56px"></span>
+        <span class="skel" style="width:min(360px,60%);height:14px;margin-top:18px"></span>`;
+    } else if (status === "error") {
+      const e = state.error || {};
+      const detail = (e.message || "Something went wrong.") +
+        (e.network ? " Start the backend with python -m uvicorn backend.main:app, then try again." : "");
+      el.hero.innerHTML = `
+        <h1 class="headline">We couldn't analyze your songs.</h1>
+        <p class="lede error-detail">${esc(detail)}</p>
+        <button class="btn-quiet" type="button" data-action="retry">Try again</button>`;
+    } else {
+      const p = state.profile;
+      const entries = breakdownEntries(p.persona_breakdown);
+      const matched = (p.user_songs || []).length;
+      const sent = state.analyzedIds.length;
+      const lede = matched < sent
+        ? `Based on ${matched} of your ${sent} songs (${sent - matched} ${sent - matched === 1 ? "wasn't" : "weren't"} in the dataset), placed among ${fmtInt(state.datasetSize)} tracks.`
+        : `Based on ${matched} ${matched === 1 ? "song" : "songs"}, placed among ${fmtInt(state.datasetSize)} tracks.`;
+      const parts = headlineParts(entries);
+      el.hero.innerHTML = `
+        <div class="${freshResults ? "reveal" : ""}">
+          <h1 class="headline">${parts.full}</h1>
+          <p class="lede">${parts.streak ? `<span class="lede-streak" hidden>${parts.streak}</span>` : ""}${esc(lede)}</p>
+        </div>`;
+      const h = el.hero.querySelector(".headline");
+      h.dataset.full = parts.full;
+      h.dataset.compact = parts.compact;
+    }
+    fitHeadline();
+  }
+
+  function renderMix() {
+    const { status } = state;
+    if (status === "loading") {
+      el.mix.innerHTML = [1, 2, 3, 4].map(() => `<div style="padding:8px 0"><span class="skel" style="width:55%;height:13px"></span><span class="skel" style="width:100%;height:6px;margin-top:8px;border-radius:3px"></span></div>`).join("");
+      return;
+    }
+    const entries = currentEntries();
+    const results = entries.length > 0;
+    const present = new Set(entries.map((e) => e.persona));
+    const absent = PERSONA_ORDER.filter((p) => !present.has(p));
+    const rows = results
+      ? entries.map((e, i) => ({ persona: e.persona, pct: e.pct, i }))
+      : PERSONA_ORDER.map((p) => ({ persona: p }));
+    const top = entries[0];
+
+    let diversity = "";
+    if (results) {
+      const score = state.profile.diversity_score;
+      const band = diversityBand(score);
+      const x = Math.max(0, Math.min(1, score)) * 100;
+      diversity = `
+        <div class="diversity ${freshResults ? "is-fresh" : ""}">
+          <div class="range-scale">
+            <span>Focused</span>
+            <div class="meter" aria-hidden="true">
+              <span class="meter-track"></span>
+              <span class="meter-tick" style="left:${DIVERSITY_THRESHOLDS.focused * 100}%"></span>
+              <span class="meter-tick" style="left:${DIVERSITY_THRESHOLDS.eclectic * 100}%"></span>
+              <span class="meter-pos" style="--x:${x}%"><span class="meter-mark"></span></span>
+            </div>
+            <span>Eclectic</span>
+          </div>
+          <p class="diversity-text">
+            Your songs cover ${entries.length} of the 7 sounds.
+            <span class="sr-only">Diversity score ${score.toFixed(2)}, ${band.label.toLowerCase()}.</span>
+            <button class="tip-btn" type="button" aria-label="What the diversity scale means"
+              data-tip="${band.label}, ${score.toFixed(2)}. ${esc(band.desc)} The scale is the normalized Shannon entropy of your mix: 0 means every song is in one sound, 1 means an even spread across all seven. Under ${DIVERSITY_THRESHOLDS.focused.toFixed(2)} reads as focused, over ${DIVERSITY_THRESHOLDS.eclectic.toFixed(2)} as eclectic.">${ICON_INFO}</button>
+          </p>
+        </div>`;
+    }
+
+    el.mix.innerHTML = `
+      <ul class="mix-rows ${results && freshResults ? "is-fresh" : ""}" aria-label="${results ? "Your mix, by share" : "The seven sounds"}">
+        ${rows.map((r) => `
+          <li class="mix-row" data-persona="${esc(r.persona)}" tabindex="0" data-tip="${esc(blurbOf(r.persona))}"
+              aria-label="${esc(nameOf(r.persona))}${results ? `, ${r.pct} percent` : ""}">
+            <span class="dot" style="--c:${colorOf(r.persona)}" aria-hidden="true"></span>
+            <span class="name">${esc(nameOf(r.persona))}</span>
+            ${results ? `<span class="pct" aria-hidden="true">${r.pct}%</span>
+            <span class="bar" aria-hidden="true"><span class="bar-fill" style="--c:${colorOf(r.persona)};--w:${r.pct}%;--delay:${r.i * 40}ms"></span></span>` : ""}
+          </li>`).join("")}
+      </ul>
+      ${results && absent.length ? `<p class="mix-absent">Not in your songs: ${absent.map((p) => esc(nameOf(p))).join(", ")}.</p>` : ""}
+      ${results
+        ? `<p class="mix-blurb"><strong>${esc(nameOf(top.persona))}:</strong> ${esc(blurbOf(top.persona))}</p>`
+        : `<p class="mix-empty">${status === "error" ? "Your breakdown will appear here once the analysis runs." : "Your breakdown appears here after you analyze your songs."}</p>`}
+      ${diversity}`;
+    syncFocus();
+  }
+
+  const ordinal = (n) => {
+    const r = n % 100;
+    if (r >= 11 && r <= 13) return `${n}th`;
+    return `${n}${["th", "st", "nd", "rd"][n % 10] || "th"}`;
+  };
+
+  function renderCompare() {
+    const pct = state.profile.percentiles || {};
+    el.compare.classList.toggle("is-fresh", freshResults);
+    el.compare.innerHTML = Object.keys(FEATURE_COPY).map((key, i) => {
+      const f = FEATURE_COPY[key];
+      const raw = Number(pct[key]);
+      if (!Number.isFinite(raw)) return "";
+      const p = Math.max(0, Math.min(100, raw));
+      const r = Math.round(p);
+      const sentence = r >= 50
+        ? `Higher than ${r}% of tracks in the dataset.`
+        : `Lower than ${100 - r}% of tracks in the dataset.`;
+      return `
+        <div class="cmp-row">
+          <div class="cmp-top">
+            <div><div class="cmp-name">${f.label}</div><div class="cmp-hint">${esc(f.hint)}</div></div>
+            <span class="cmp-val">${ordinal(r)} percentile</span>
+          </div>
+          <div class="cmp-meter" aria-hidden="true">
+            <span class="track"></span>
+            <span class="tick"></span>
+            <span class="mark" style="--x:${p}%;--delay:${140 + i * 40}ms"></span>
+          </div>
+          <div class="cmp-ends" aria-hidden="true"><span>Lower</span><span>Higher</span></div>
+          <p class="cmp-sentence">${sentence}</p>
+        </div>`;
+    }).join("");
+  }
+
+  function renderRecs() {
+    const recs = state.profile.recommendations || [];
+    const top = currentEntries()[0];
+    el.recsHint.innerHTML = top
+      ? `<span class="dot" style="--c:${colorOf(top.persona)}" aria-hidden="true"></span>Closest on the map to the center of your ${esc(nameOf(top.persona))} songs`
+      : "";
+    if (!recs.length) {
+      el.recs.innerHTML = `<p class="recs-empty">No recommendations came back for this mix.</p>`;
+      return;
+    }
+    el.recs.innerHTML = recs.map((r) => `
+      <div class="rec">
+        ${artHtml(r.track_id, top ? top.persona : null)}
+        <span class="rec-text"><span title="${esc(r.track_name)}">${esc(r.track_name)}</span><span title="${esc(r.artists)}">${esc(r.artists)}</span></span>
+        <a class="rec-link" href="https://open.spotify.com/track/${encodeURIComponent(r.track_id)}" target="_blank" rel="noopener"
+           aria-label="Open ${esc(r.track_name)} by ${esc(r.artists)} in Spotify">Open in Spotify</a>
+      </div>`).join("");
+    hydrateArt(el.recs);
+  }
+
+  function renderLowerSkeletons() {
+    el.compare.innerHTML = Array.from({ length: 4 }, () =>
+      `<div style="padding:14px 0"><span class="skel" style="width:40%;height:15px"></span><span class="skel" style="width:100%;height:2px;margin-top:16px"></span></div>`).join("");
+    el.recsHint.textContent = "";
+    el.recs.innerHTML = Array.from({ length: 3 }, () => `<div style="padding:10px 0"><span class="skel" style="width:60%;height:14px"></span><span class="skel" style="width:35%;height:12px;margin-top:6px"></span></div>`).join("");
+  }
+
+  /* ==========================================================================
+     Linked highlight: persona focus + hovered track
+     ========================================================================== */
+  function setFocusPersona(persona) {
+    if (state.focusPersona === persona) return;
+    state.focusPersona = persona;
+    syncFocus();
+    drawBackground();
+    drawMap();
+  }
+  function syncFocus() {
+    const f = state.focusPersona;
+    el.mix.classList.toggle("has-focus", !!f);
+    el.mix.querySelectorAll(".mix-row").forEach((r) => r.classList.toggle("is-focus", r.dataset.persona === f));
+    el.mapLabels.classList.toggle("has-focus", !!f);
+    el.mapLabels.querySelectorAll(".map-label").forEach((l) => l.classList.toggle("is-focus", l.dataset.persona === f));
+  }
+  function setHoverTrack(id, source = null) {
+    if (state.hoverTrackId === id && state.hoverSource === source) return;
+    state.hoverTrackId = id;
+    state.hoverSource = id ? source : null;
+    syncLinkedRow();
+    drawMap();
+  }
+
+  /* ==========================================================================
+     Sound map (canvas). Background points are rendered once into an offscreen
+     canvas; hover only redraws the user's points on top.
+     ========================================================================== */
+  const MAP_PAD = { x: 18, top: 34, bottom: 34 }; // room for the y-axis captions
+  const view = {
+    w: 0, h: 0, dpr: 1, bounds: null, points: null, centroids: null, userPts: [],
+    bg: document.createElement("canvas"),     // composited background, redrawn on resize / focus / status
+    layer: document.createElement("canvas"),  // scratch: opaque dots, faded onto bg in one step
+  };
+
+  function prepareMap() {
+    const pts = (state.map && state.map.points) || [];
+    const sums = {};
+    for (const p of pts) {
+      const s = (sums[p.persona] ||= { x: 0, y: 0, n: 0 });
+      s.x += p.pca_x; s.y += p.pca_y; s.n += 1;
+    }
+    view.centroids = Object.fromEntries(Object.entries(sums).map(([k, s]) => [k, { x: s.x / s.n, y: s.y / s.n }]));
+    // Draw order: a fixed shuffle (seeded, so it's stable between renders) so no
+    // persona always ends up on top in the dense core.
+    let seed = 7;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const order = pts.slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    view.points = order;
+  }
+
+  function computeBounds() {
+    const pts = (state.map && state.map.points) || [];
+    if (!pts.length) { view.bounds = null; return; }
+    const xs = pts.map((p) => p.pca_x).sort((a, b) => a - b);
+    const ys = pts.map((p) => p.pca_y).sort((a, b) => a - b);
+    const q = (arr, f) => arr[Math.floor(f * (arr.length - 1))];
+    // Trim the extreme 0.5% on each side so a few outliers don't squash the map.
+    let minX = q(xs, 0.005), maxX = q(xs, 0.995), minY = q(ys, 0.005), maxY = q(ys, 0.995);
+    if (state.status === "results") {
+      for (const u of state.profile.user_songs || []) {
+        minX = Math.min(minX, u.pca_x); maxX = Math.max(maxX, u.pca_x);
+        minY = Math.min(minY, u.pca_y); maxY = Math.max(maxY, u.pca_y);
+      }
+    }
+    const px = (maxX - minX) * 0.02 || 1, py = (maxY - minY) * 0.02 || 1;
+    view.bounds = { minX: minX - px, maxX: maxX + px, minY: minY - py, maxY: maxY + py };
+  }
+
+  const toX = (x) => MAP_PAD.x + ((x - view.bounds.minX) / (view.bounds.maxX - view.bounds.minX)) * (view.w - 2 * MAP_PAD.x);
+  const toY = (y) => view.h - MAP_PAD.bottom - ((y - view.bounds.minY) / (view.bounds.maxY - view.bounds.minY)) * (view.h - MAP_PAD.top - MAP_PAD.bottom);
+
+  function resizeMap() {
+    const rect = el.plot.getBoundingClientRect();
+    view.w = rect.width;
+    view.h = rect.height;
+    view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for (const c of [el.mapCanvas, view.bg, view.layer]) {
+      c.width = Math.max(0, Math.round(view.w * view.dpr));
+      c.height = Math.max(0, Math.round(view.h * view.dpr));
+    }
+  }
+
+  // Dots are drawn opaque, then the whole layer is faded in one step. Fading each
+  // dot instead lets overlapping colours average into mud in the dense core.
+  const DOT_R = 2;
+  function paintDots(ctx, filter, color) {
+    if (color) ctx.fillStyle = color;
+    for (const p of view.points) {
+      if (!filter(p)) continue;
+      if (!color) ctx.fillStyle = colorOf(p.persona);
+      ctx.beginPath();
+      ctx.arc(toX(p.pca_x), toY(p.pca_y), DOT_R, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawBackground() {
+    const bg = view.bg.getContext("2d");
+    const layer = view.layer.getContext("2d");
+    for (const ctx of [bg, layer]) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, view.bg.width, view.bg.height);
+    }
+    if (!view.points || !view.bounds || !view.w || !view.h || !view.bg.width) return;
+    layer.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    bg.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    const results = state.status === "results";
+    const focus = state.focusPersona;
+
+    // Before results the background is the colour key. Once the user's songs are on
+    // top it goes neutral so colour means "yours" (or the focused persona) only.
+    paintDots(layer, (p) => !focus || p.persona !== focus, results ? (cssVar("--text-3") || "#828E9F") : null);
+    bg.save();
+    bg.setTransform(1, 0, 0, 1, 0, 0);
+    bg.globalAlpha = focus ? (results ? 0.18 : 0.12) : (results ? 0.38 : 0.8);
+    bg.drawImage(view.layer, 0, 0);
+    bg.restore();
+    if (focus) {
+      bg.globalAlpha = 0.95;
+      paintDots(bg, (p) => p.persona === focus);
+      bg.globalAlpha = 1;
+    }
+  }
+
+  function drawMap() {
+    const ctx = el.mapCanvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, el.mapCanvas.width, el.mapCanvas.height);
+    if (!view.bounds || !view.bg.width || !view.bg.height) { hideMapTip(); return; }
+    ctx.drawImage(view.bg, 0, 0);
+    view.userPts = [];
+    if (state.status !== "results") { hideMapTip(); return; }
+
+    ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    const focus = state.focusPersona;
+    let hovered = null;
+    for (const s of state.profile.user_songs || []) {
+      const pt = { x: toX(s.pca_x), y: toY(s.pca_y), song: s };
+      view.userPts.push(pt);
+      if (s.track_id === state.hoverTrackId) { hovered = pt; continue; } // drawn last, on top
+      ctx.globalAlpha = focus && s.persona !== focus ? 0.3 : 1;
+      drawUserPoint(ctx, pt, 5.5);
+    }
+    ctx.globalAlpha = 1;
+    if (hovered) {
+      ctx.beginPath();
+      ctx.arc(hovered.x, hovered.y, 12.5, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(244, 248, 255, 0.5)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      drawUserPoint(ctx, hovered, 7.5);
+      showMapTip(hovered);
+    } else {
+      hideMapTip();
+    }
+  }
+
+  const pointRing = () => getComputedStyle(document.documentElement).getPropertyValue("--point-ring").trim() || "#F4F8FF";
+  let POINT_RING = "#F4F8FF";
+  function drawUserPoint(ctx, pt, r) {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = colorOf(pt.song.persona);
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = POINT_RING;
+    ctx.stroke();
+  }
+
+  function showMapTip(pt) {
+    const s = pt.song;
+    const wasOpen = el.mapTip.classList.contains("is-open");
+    el.mapTip.innerHTML = `
+      ${artHtml(s.track_id, s.persona)}
+      <span class="map-tip-text">
+        <span class="map-tip-name">${esc(s.track_name)}</span>
+        <span class="map-tip-artist">${esc(s.artists)}</span>
+        <span class="map-tip-persona"><span class="dot" style="--c:${colorOf(s.persona)}"></span>${esc(nameOf(s.persona))}</span>
+      </span>`;
+    hydrateArt(el.mapTip);
+    el.mapTip.hidden = false;
+    el.mapTip.dataset.instant = String(wasOpen); // moving between points: no re-animation
+    const tw = el.mapTip.offsetWidth, th = el.mapTip.offsetHeight;
+    let left = pt.x + 14, top = pt.y - th - 10;
+    if (left + tw > view.w - 8) left = pt.x - tw - 14;
+    if (top < 8) top = pt.y + 14;
+    left = Math.max(8, left);
+    el.mapTip.style.translate = `${left}px ${top}px`;
+    el.mapTip.style.transformOrigin = `${pt.x < left ? "left" : "right"} ${pt.y < top ? "top" : "bottom"}`;
+    if (!wasOpen) requestAnimationFrame(() => el.mapTip.classList.add("is-open"));
+  }
+  function hideMapTip() {
+    el.mapTip.classList.remove("is-open");
+    el.mapTip.hidden = true;
+  }
+
+  function renderMapLabels() {
+    if (!view.centroids || !view.bounds || !view.w) { el.mapLabels.innerHTML = ""; return; }
+    const results = state.status === "results";
+    const active = new Set(results ? currentEntries().map((e) => e.persona) : PERSONA_ORDER);
+    // Personas the user has songs in get full-weight labels and are placed first;
+    // the rest are smaller, secondary, and the first to go if space runs out.
+    const order = [...PERSONA_ORDER.filter((p) => active.has(p)), ...PERSONA_ORDER.filter((p) => !active.has(p))]
+      .filter((p) => view.centroids[p]);
+    el.mapLabels.innerHTML = order.map((p) => `
+      <span class="map-label halo ${active.has(p) ? "" : "is-minor"}" data-persona="${esc(p)}" data-tip="${esc(blurbOf(p))}">
+        <span class="dot" style="--c:${colorOf(p)}"></span>${esc(nameOf(p))}
+      </span>`).join("");
+
+    // The y-axis captions and the user's dots are fixed obstacles; labels move around them.
+    const plotRect = el.plot.getBoundingClientRect();
+    const fixed = [el.yHigh, el.yLow].map((node) => {
+      const r = node.getBoundingClientRect();
+      return { x: r.left - plotRect.left + r.width / 2, y: r.top - plotRect.top + r.height / 2, w: r.width, h: r.height, fixed: true };
+    });
+    if (results) {
+      for (const u of state.profile.user_songs || []) fixed.push({ x: toX(u.pca_x), y: toY(u.pca_y), w: 30, h: 26, fixed: true });
+    }
+    const boxes = [...el.mapLabels.children].map((node) => {
+      const c = view.centroids[node.dataset.persona];
+      return { node, x: toX(c.x), y: toY(c.y), w: node.offsetWidth, h: node.offsetHeight, minor: node.classList.contains("is-minor") };
+    });
+    const overlap = (a, b, padX = 8, padY = 3) => {
+      const ox = (a.w + b.w) / 2 + padX - Math.abs(a.x - b.x);
+      const oy = (a.h + b.h) / 2 + padY - Math.abs(a.y - b.y);
+      return ox > 0 && oy > 0 ? { ox, oy } : null;
+    };
+    const clamp = (b) => {
+      b.x = Math.max(b.w / 2 + 6, Math.min(view.w - b.w / 2 - 6, b.x));
+      b.y = Math.max(b.h / 2 + 6, Math.min(view.h - b.h / 2 - 6, b.y));
+    };
+    boxes.forEach(clamp);
+
+    const all = [...boxes, ...fixed];
+    for (let iter = 0; iter < 120; iter++) {
+      let moved = false;
+      for (let i = 0; i < all.length; i++) {
+        for (let j = i + 1; j < all.length; j++) {
+          const a = all[i], b = all[j];
+          if (a.fixed && b.fixed) continue;
+          const o = overlap(a, b);
+          if (!o) continue;
+          // Labels are wide and short, so the push is usually vertical; go sideways
+          // only when that is clearly the smaller move.
+          const axis = o.ox < o.oy * 2 ? "x" : "y";
+          const amt = (axis === "x" ? o.ox : o.oy) + 0.5;
+          const dir = (axis === "x" ? a.x <= b.x : a.y <= b.y) ? -1 : 1;
+          if (a.fixed) b[axis] -= dir * amt;
+          else if (b.fixed) a[axis] += dir * amt;
+          else { a[axis] += dir * amt / 2; b[axis] -= dir * amt / 2; }
+          moved = true;
+        }
+      }
+      boxes.forEach(clamp);
+      if (!moved) break;
+    }
+    // A label caught between two obstacles can oscillate above; if it is still
+    // colliding, try positions around its centroid at growing radius instead.
+    const collides = (b, others) => others.some((o) => overlap(b, o, 4, 1));
+    const placed = [...fixed];
+    for (const b of boxes) {
+      b.hidden = false;
+      if (collides(b, placed)) {
+        const c = view.centroids[b.node.dataset.persona];
+        const cx = toX(c.x), cy = toY(c.y), nx = b.x, ny = b.y;
+        let found = false;
+        for (let r = 14; r <= 98 && !found; r += 14) {
+          for (let k = 0; k < 8 && !found; k++) {
+            const ang = (k / 8) * Math.PI * 2 + Math.PI / 2;
+            b.x = cx + Math.cos(ang) * r;
+            b.y = cy + Math.sin(ang) * r;
+            clamp(b);
+            found = !collides(b, placed);
+          }
+        }
+        if (!found) { b.x = nx; b.y = ny; b.hidden = b.minor; }
+      }
+      b.node.classList.toggle("is-hidden", b.hidden);
+      if (!b.hidden) placed.push(b);
+    }
+    for (const b of boxes) b.node.style.translate = `${Math.round(b.x - b.w / 2)}px ${Math.round(b.y - b.h / 2)}px`;
+    syncFocus();
+  }
+
+  function renderMapStatus() {
+    let html = "";
+    if (state.mapStatus === "loading") html = `<div>Loading the sound map…</div>`;
+    else if (state.mapStatus === "error") html = `<div>Couldn't load the sound map.<button class="btn-quiet" type="button" data-action="retry-map">Try again</button></div>`;
+    else if (state.status === "loading") html = `<div>Placing your songs…</div>`;
+    el.mapStatus.innerHTML = html;
+    el.mapStatus.hidden = !html;
+  }
+
+  function describeMap() {
+    const sample = (state.map && state.map.points.length) || SOUND_MAP_SAMPLE;
+    let label = `Sound map: a sample of ${fmtInt(sample)} tracks placed by how they sound, from ${AXIS_LABELS.x.low} on the left to ${AXIS_LABELS.x.high} on the right, and from ${AXIS_LABELS.y.low} at the bottom to ${AXIS_LABELS.y.high} at the top. Each of the 7 sounds is labelled at its center.`;
+    if (state.status === "results") {
+      label += ` Your ${(state.profile.user_songs || []).length} songs are shown as outlined dots: ` +
+        currentEntries().map((e) => `${e.pct}% ${nameOf(e.persona)}`).join(", ") + ". Your song list in the sidebar has the details.";
+    }
+    el.mapCanvas.setAttribute("aria-label", label);
+    el.mapHint.textContent = state.status === "results"
+      ? "· outlined dots are your songs"
+      : `· ${fmtInt(sample)} sampled tracks`;
+  }
+
+  function refreshMap() {
+    renderMapStatus();
+    describeMap();
+    if (!view.w) resizeMap();
+    computeBounds();
+    drawBackground();
+    drawMap();
+    renderMapLabels();
+  }
+
+  function pointAt(e, radius) {
+    const rect = el.mapCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let best = null, bestD = radius * radius;
+    for (const pt of view.userPts) {
+      const d = (pt.x - mx) ** 2 + (pt.y - my) ** 2;
+      if (d < bestD) { bestD = d; best = pt; }
+    }
+    return best;
+  }
+  function onMapPointerMove(e) {
+    if (e.pointerType !== "mouse" || state.status !== "results" || !view.userPts.length) return;
+    const best = pointAt(e, 14);
+    el.mapCanvas.style.cursor = best ? "pointer" : "default";
+    setHoverTrack(best ? best.song.track_id : null, best ? "map" : null);
+  }
+  function onMapTap(e) {
+    if (e.pointerType === "mouse" || state.status !== "results" || !view.userPts.length) return;
+    const best = pointAt(e, 22);
+    setHoverTrack(best ? best.song.track_id : null, best ? "map" : null);
+  }
+
+  /* ==========================================================================
+     Shared tooltip for [data-tip] elements. Short delay for the first one,
+     instant for the next while one is open (or was just closed).
+     ========================================================================== */
+  let tipOwner = null, tipTimer = null, tipLastHidden = 0;
+  function showTip(target, instant) {
+    const text = target.dataset.tip;
+    if (!text) return;
+    tipOwner = target;
+    el.tip.textContent = text;
+    el.tip.hidden = false;
+    el.tip.classList.remove("is-open");
+    el.tip.dataset.instant = String(instant);
+    const r = target.getBoundingClientRect();
+    const t = el.tip.getBoundingClientRect();
+    const left = Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2));
+    let top = r.top - t.height - 8;
+    const below = top < 8;
+    if (below) top = r.bottom + 8;
+    el.tip.style.translate = `${Math.round(left)}px ${Math.round(top)}px`;
+    el.tip.style.transformOrigin = `${r.left + r.width / 2 - left}px ${below ? "0" : "100%"}`;
+    target.setAttribute("aria-describedby", "tip");
+    requestAnimationFrame(() => el.tip.classList.add("is-open"));
+  }
+  function hideTip() {
+    clearTimeout(tipTimer);
+    if (!tipOwner) return;
+    tipOwner.removeAttribute("aria-describedby");
+    tipOwner = null;
+    el.tip.classList.remove("is-open");
+    el.tip.hidden = true;
+    tipLastHidden = performance.now();
+  }
+  function onTipEnter(target, viaFocus) {
+    if (target === tipOwner) return;
+    clearTimeout(tipTimer);
+    const instant = viaFocus || !!tipOwner || performance.now() - tipLastHidden < 400;
+    if (tipOwner) hideTip();
+    if (instant) showTip(target, true);
+    else tipTimer = setTimeout(() => showTip(target, false), 350);
+  }
+
+  /* ==========================================================================
+     How this works
+     ========================================================================== */
+  function renderHow() {
+    const ev = (state.map && state.map.explained_variance) || [0.343, 0.175];
+    const v1 = Math.round(ev[0] * 100), v2 = Math.round(ev[1] * 100);
+    el.axesTip.dataset.tip =
+      `Each dot is a track, placed by how it sounds; your songs are the outlined dots. Hover one, or a song in your list. ` +
+      `Horizontal: principal component 1, ${v1}% of the variation in the audio features. ` +
+      `Vertical: principal component 2, ${v2}%. Together they keep ${v1 + v2}%, so nearby dots sound alike but the picture is a simplification.`;
+    el.howBody.innerHTML = `
+      <div>
+        <h3>The sounds</h3>
+        <p>${fmtInt(state.datasetSize)} Spotify tracks were grouped by nine audio features (danceability, energy, loudness, speechiness, acousticness, instrumentalness, liveness, mood and tempo), with no genre labels involved. Energy, loudness and acousticness move together, so they were combined into a single “intensity” feature first.</p>
+        <p>k-means clustering then split the tracks into 7 groups. Each group was named after the features that set it apart from the average track.</p>
+      </div>
+      <div>
+        <h3>The map</h3>
+        <p>Principal component analysis squeezes the seven clustering features into two dimensions so they can be drawn. The two axes keep ${v1}% and ${v2}% of the variation (${v1 + v2}% together), so the map is a useful sketch rather than an exact picture.</p>
+        <p>Horizontal mostly tracks intensity: ${AXIS_LABELS.x.low} to ${AXIS_LABELS.x.high}. Vertical mostly tracks danceability and mood against intensity and instrumentalness: ${AXIS_LABELS.y.low} to ${AXIS_LABELS.y.high}.</p>
+      </div>
+      <div>
+        <h3>Your mix and diversity</h3>
+        <p>Each of your songs already belongs to one sound, so your mix is just the share of your songs in each. Diversity is the normalized Shannon entropy of that mix: 0 means every song is in one sound, 1 means an even spread across all seven.</p>
+      </div>
+      <div>
+        <h3>How you compare</h3>
+        <p>We average each feature across your songs and rank that average against every individual track in the dataset. It compares your songs to <em>tracks</em>, not to other listeners.</p>
+        <p>Recommendations are the three tracks closest on the map to the center of your songs in your top sound.</p>
+      </div>
+      <div class="how-wide">
+        <h3>A caveat</h3>
+        <p>Real music doesn't fall into neat boxes. The clusters overlap (silhouette score about 0.17 to 0.20, where 1 would be perfectly separated), so a song near a border could reasonably sit in either sound.</p>
+      </div>
+      <div class="how-wide">
+        <h3>What sets each sound apart</h3>
+        <table class="how-table">
+          <thead><tr><th scope="col">Sound</th><th scope="col">In plain words</th><th scope="col">vs. the average track (standard deviations)</th></tr></thead>
+          <tbody>
+            ${PERSONA_ORDER.map((p) => {
+              const d = PERSONA_DISPLAY[p];
+              return `<tr><td><span class="dot" style="--c:${colorOf(p)}" aria-hidden="true"></span>${esc(d.name)}</td><td>${esc(d.traits.join(", "))}</td><td>${esc(d.stats)}</td></tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  /* ==========================================================================
+     Events
+     ========================================================================== */
+  function wireEvents() {
+    el.searchInput.addEventListener("input", onSearchInput);
+    el.searchInput.addEventListener("keydown", onSearchKeydown);
+    el.searchInput.addEventListener("focus", () => { if (el.searchInput.value.trim()) onSearchInput(); });
+    // mousedown keeps focus in the input so the list doesn't close before the click lands
+    el.searchOptions.addEventListener("mousedown", (e) => e.preventDefault());
+    el.searchOptions.addEventListener("click", (e) => {
+      const opt = e.target.closest(".option");
+      if (opt) pickResult(Number(opt.dataset.index));
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (!e.target.closest("#search")) closeSearch();
+      if (e.pointerType !== "mouse" && state.hoverSource === "map" && !e.target.closest("#plot")) setHoverTrack(null);
+    });
+
+    el.songList.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-remove]");
+      if (btn) removeTrack(btn.dataset.remove);
+    });
+    const railLink = (e) => {
+      const row = e.target.closest(".song");
+      if (state.status !== "results") return;
+      const id = row && state.profile.user_songs.some((s) => s.track_id === row.dataset.id) ? row.dataset.id : null;
+      setHoverTrack(id, id ? "rail" : null);
+    };
+    el.songList.addEventListener("pointerover", railLink);
+    el.songList.addEventListener("focusin", railLink);
+    el.songList.addEventListener("pointerleave", () => { if (state.hoverSource === "rail") setHoverTrack(null); });
+    el.songList.addEventListener("focusout", (e) => { if (!el.songList.contains(e.relatedTarget) && state.hoverSource === "rail") setHoverTrack(null); });
+
+    el.analyzeBtn.addEventListener("click", analyze);
+    el.clearBtn.addEventListener("click", () => {
+      state.tracks = [];
+      state.status = "empty";
+      state.profile = null;
+      state.analyzedIds = [];
+      state.focusPersona = null;
+      setHoverTrack(null);
+      renderRail();
+      renderMain();
+      el.searchInput.focus();
+      announce("Cleared all songs.");
+    });
+
+    document.addEventListener("click", (e) => {
+      const action = e.target.closest("[data-action]");
+      if (!action) return;
+      if (action.dataset.action === "retry") analyze();
+      if (action.dataset.action === "retry-map") loadSoundMap();
+    });
+
+    const focusFrom = (e) => {
+      const node = e.target.closest("[data-persona]");
+      setFocusPersona(node ? node.dataset.persona : null);
+    };
+    el.mix.addEventListener("pointerover", focusFrom);
+    el.mix.addEventListener("pointerleave", () => setFocusPersona(null));
+    el.mix.addEventListener("focusin", focusFrom);
+    el.mix.addEventListener("focusout", (e) => { if (!el.mix.contains(e.relatedTarget)) setFocusPersona(null); });
+    el.mapLabels.addEventListener("pointerover", focusFrom);
+    el.mapLabels.addEventListener("pointerleave", () => setFocusPersona(null));
+
+    el.mapCanvas.addEventListener("pointermove", onMapPointerMove);
+    el.mapCanvas.addEventListener("pointerup", onMapTap);
+    el.mapCanvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse" && state.hoverSource === "map") setHoverTrack(null); });
+
+    document.addEventListener("pointerover", (e) => {
+      const t = e.target.closest("[data-tip]");
+      if (t) onTipEnter(t, false);
+    });
+    document.addEventListener("pointerout", (e) => {
+      const t = e.target.closest("[data-tip]");
+      if (t && t === tipOwner && !t.contains(e.relatedTarget)) hideTip();
+      else if (t) clearTimeout(tipTimer);
+    });
+    document.addEventListener("focusin", (e) => {
+      const t = e.target.closest("[data-tip]");
+      if (t && t.matches(":focus-visible")) onTipEnter(t, true);
+    });
+    document.addEventListener("focusout", (e) => { if (e.target === tipOwner) hideTip(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+    window.addEventListener("scroll", hideTip, { passive: true });
+
+    new ResizeObserver(() => {
+      resizeMap();
+      drawBackground();
+      drawMap();
+      renderMapLabels();
+    }).observe(el.plot);
+  }
+
+  /* ==========================================================================
+     Boot
+     ========================================================================== */
+  async function loadSoundMap() {
+    state.mapStatus = "loading";
+    renderMapStatus();
+    try {
+      const data = await api.soundMap();
+      state.map = { points: data.points || [], explained_variance: data.explained_variance || [] };
+      state.mapStatus = "ready";
+      prepareMap();
+    } catch (_) {
+      state.mapStatus = "error";
+    }
+    renderHow();
+    refreshMap();
+  }
+
+  async function loadHealth() {
+    try {
+      const h = await api.health();
+      if (h && h.loaded_tracks > 0) {
+        state.datasetSize = h.loaded_tracks;
+        if (state.status !== "results") renderHero();
+        renderHow();
+      }
+    } catch (_) {}
+  }
+
+  function init() {
+    loadPersonaColors();
+    POINT_RING = pointRing();
+    el.xLow = $("#x-low"); el.xHigh = $("#x-high");
+    el.xLow.textContent = `← ${AXIS_LABELS.x.low}`;
+    el.xHigh.textContent = `${AXIS_LABELS.x.high} →`;
+    el.yHigh.textContent = `↑ ${AXIS_LABELS.y.high}`;
+    el.yLow.textContent = `↓ ${AXIS_LABELS.y.low}`;
+    wireEvents();
+    renderRail();
+    renderHow();
+    renderMain();
+    loadHealth();
+    loadSoundMap();
+    // Fonts change label widths; re-run label placement once they're in.
+    document.fonts && document.fonts.ready.then(() => { renderMapLabels(); fitHeadline(); });
+    let fitFrame = 0;
+    window.addEventListener("resize", () => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(fitHeadline); });
+  }
+
+  init();
   </script>
 </body>
 </html>

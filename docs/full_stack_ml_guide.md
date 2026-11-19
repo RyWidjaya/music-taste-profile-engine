@@ -185,7 +185,7 @@ The only prerequisite for effortless frontend vibecoding is having a **predictab
 2. **Taste Breakdown Dashboard**:
    - Donut Chart showing persona percentages (using Chart.js or Recharts).
    - Taste Diversity / Entropy Gauge.
-   - Percentile call-out badges (e.g. *"Your acousticness is higher than 84% of listeners"*).
+   - Percentile call-out badges (e.g. *"Your acousticness is higher than 84% of tracks in the dataset"*).
 3. **Interactive Sound Map**:
    - 2D Scatter plot of the 128K song universe in background, with the user's selected songs plotted as glowing pins.
 4. **Recommended Tracks**:

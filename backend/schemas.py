@@ -111,7 +111,7 @@ class TasteProfileResponse(BaseModel):
     )
     percentiles: Dict[str, float] = Field(
         ..., 
-        description="User's average audio traits benchmarked against the 89k dataset."
+        description="Percentile (0-100) of the user's average audio traits against all 127,900 individual tracks in the dataset."
     )
     recommendations: List[Dict[str, Any]] = Field(
         ..., 

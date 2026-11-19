@@ -31,6 +31,7 @@ def taste_profile(track_ids, data):
     for i in breakdown: 
         diversity_score += (-breakdown[i]) * np.log(breakdown[i]) # calculate diversity score by summing for all clusters
 
+
     diversity_score /= np.log(7) # divide by the maximum entropy which is log(7) - perfectly split taste amongst all 7 clusters
 
    # Percentiles 

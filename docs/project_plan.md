@@ -94,7 +94,7 @@ This is the feature that makes the project unique:
 1. User supplies a list of songs (see "Getting songs from the user" below).
 2. Look up each song's cluster with the already-fitted `.predict()` (never refit on the user's songs).
 3. Aggregate into a **percentage breakdown** across personas — "38% High-Energy Pop, 27% Moody Acoustic, 20% Chill Instrumental, 15% Sad Bangers" — shown as a donut chart with a headline result, like a personality-quiz output.
-4. **Compare to the global average.** Use `scipy.stats.percentileofscore` on each raw feature to say things like "your acousticness is higher than 78% of listeners in the dataset" — far more interesting than a bare percentage.
+4. **Compare to the global average.** Use `scipy.stats.percentileofscore` on each raw feature to say things like "your acousticness is higher than 78% of tracks in the dataset" — far more interesting than a bare percentage.
 5. **Taste-diversity score.** Compute the Shannon entropy of the user's cluster-percentage distribution. High entropy = eclectic listener; low entropy = narrow, focused taste. A small, slightly unusual metric that signals you're thinking past "just run the model."
 6. **Recommendations.** Using the within-cluster nearest-neighbor index (cosine similarity on scaled features), surface unheard songs from the user's dominant persona.
 

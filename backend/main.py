@@ -267,3 +267,4 @@ def sound_map(n: int = Query(6000, ge=500, le=20000)):
             "explained_variance": [round(float(v), 3) for v in artifacts["pca_2d"].explained_variance_ratio_[:2]],
         }
     return artifacts[key]
+
