@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="sonality-lockup.png" alt="Sonality" width="380">
+  <img src="assets/sonality-lockup.png" alt="Sonality" width="380">
 </p>
 
 <h1 align="center">Sonality</h1>
@@ -128,6 +128,9 @@ Sonality takes a **strictly unsupervised approach**: rather than relying on nois
 ## 📂 Repository Structure
 
 ```
+├── assets/                         # Brand visual assets & README media
+│   ├── sonality-lockup.png         # Primary logo lockup
+│   └── sonality-mark.png           # 7-persona palette brand icon
 ├── backend/                        # FastAPI backend & ML inference pipeline
 │   ├── main.py                     # API routes, static file serving & Apple preview streaming
 │   ├── engine.py                   # PowerTransformer inference, PCA projections, recommendation math
