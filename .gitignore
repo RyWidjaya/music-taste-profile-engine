@@ -42,6 +42,8 @@ Thumbs.db
 *_redesign*.html
 *_comparison*.html
 Sonality_*.html
+docs/
+
 
 # Intermediate Pipeline Datasets (preserved locally, excluded from GitHub)
 data/spotify-tracks-dataset-detailed.csv
