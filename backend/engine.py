@@ -50,11 +50,28 @@ def taste_profile(track_ids, data):
 
     other_songs = data[(data['cluster'] == top_cluster) & (~data['track_id'].isin(track_ids))].copy() # select every other song to create a new df and assign to a new variable
 
-    other_songs['dist'] = (other_songs['pca_x'] - mean_point[0])**2 + (other_songs['pca_y'] - mean_point[1])**2 # calculate euclidean distance of all points to the mean point
+    other_songs['dist'] = np.sqrt((other_songs['pca_x'] - mean_point[0])**2 + (other_songs['pca_y'] - mean_point[1])**2) # calculate euclidean distance of all points to the mean point
 
-    cols = ['track_id', 'track_name', 'artists', 'album_name'] # these are the features we want to return in the recommendation
-    # return the top 3 songs within that cluster (smallest euclidean distances), select only required features and return as a dict
-    suggested_songs = other_songs.sort_values(by='dist', ascending=True)[cols].head(3).to_dict(orient='records') # orient='records' treats every row as a dict (record)
+    other_songs['tempo'] = other_songs['tempo'].round().astype(int)
+    other_songs['energy_pct'] = (other_songs['energy'] * 100).round().astype(int)
+    other_songs['valence_pct'] = (other_songs['valence'] * 100).round().astype(int)
+    other_songs['acoustic_pct'] = (other_songs['acousticness'] * 100).round().astype(int)
+    other_songs['dance_pct'] = (other_songs['danceability'] * 100).round().astype(int)
+
+    # Sort to get the top 3 closest recommendations
+    top_3_recs = other_songs.sort_values(by='dist', ascending=True).head(3).copy()
+    d0 = top_3_recs.iloc[0]['dist'] if len(top_3_recs) > 0 else 0
+    top_3_recs['match_pct'] = [
+        int(np.clip(round(99 - (rank * 2.5) - ((row['dist'] - d0) * 100)), 85, 99))
+        for rank, (_, row) in enumerate(top_3_recs.iterrows())
+    ]
+
+    cols = [
+        'track_id', 'track_name', 'artists', 'album_name',
+        'tempo', 'energy_pct', 'valence_pct', 'acoustic_pct', 'dance_pct',
+        'track_genre', 'match_pct'
+    ] # these are the features we want to return in the recommendation
+    suggested_songs = top_3_recs[cols].to_dict(orient='records')
 
     # 2D Sound Map Coordinates for the user's selected songs
     user_songs = selected[['track_id', 'track_name', 'artists', 'pca_x', 'pca_y', 'persona']].to_dict(orient='records')

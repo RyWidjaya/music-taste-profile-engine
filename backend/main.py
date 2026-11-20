@@ -12,12 +12,17 @@ It is architected around the 4 Universal Pillars of production FastAPI services:
 """
 
 import os
+import re
+import time
 import json
 import joblib
 import pandas as pd
+import requests
+import urllib.parse
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 # Data contracts (Pydantic schemas)
@@ -107,7 +112,7 @@ async def lifespan(app: FastAPI):
 # The `lifespan=lifespan` argument binds our Pillar 1 startup logic to this app.
 # ==============================================================================
 app = FastAPI(
-    title="Spotify Taste Profile Engine API",
+    title="Sonality API",
     description="Production ML API that clusters songs into 7 Sound Personas and computes listener taste diagnostics.",
     version="1.0.0",
     lifespan=lifespan,
@@ -140,14 +145,20 @@ app.add_middleware( # .add_middleware() adds functionality that intercepts/proce
 #   4. Return the result.
 # ==============================================================================
 
-# ─── ROUTE: SERVE FRONTEND (HTTP GET /) ───────────────────────────────────────
+# ─── ROUTE: SERVE FRONTEND (HTTP GET / and /static/*) ─────────────────────────
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
 @app.get("/", include_in_schema=False)
 def serve_index():
     """Serves the single-page frontend application at the root URL."""
-    index_path = os.path.join(BASE_DIR, "frontend", "index.html")
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="frontend/index.html not found")
     return FileResponse(index_path)
+
+# styles.css, app.js, favicon.svg and the logo files live next to index.html
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 # ─── ROUTE 0: SYSTEM HEALTH CHECK ─────────────────────────────────────────────
@@ -191,7 +202,7 @@ def health_check():
 def search_tracks(
     # Query(...) indicates to read the value from the URL's query string (the "?q=queen&limit=10" part, as key=value pairs) and validates it against the rules (min_length, ge/le).
     q: str = Query(..., min_length=1, description="Search keyword for track name or artist"), # converts the query to a python string
-    limit: int = Query(10, ge=1, le=50, description="Max number of results to return"),
+    limit: int = Query(30, ge=1, le=100, description="Max number of results to return"),
 ):
     """
     Lightning-fast autocomplete search against our 128k in-memory dataset.
@@ -228,8 +239,8 @@ def search_tracks(
 # HTTP request body.
 # - Input contract: `TasteProfileRequest` validates track_ids is a non-empty list.
 # - Output contract: `TasteProfileResponse` guarantees the 5 diagnostic metrics.
-@app.post("/api/taste-profile", response_model=TasteProfileResponse, tags=["ML Inference"], summary="Compute listener taste diagnostic from track IDs",)
-def get_taste_profile(request: TasteProfileRequest): 
+@app.post("/api/taste-profile", response_model=TasteProfileResponse, tags=["ML Inference"], summary="Compute listener taste diagnostic from track IDs")
+def get_taste_profile(request: TasteProfileRequest, background_tasks: BackgroundTasks): 
     # `request` is just the parameter name; `TasteProfileRequest` is its type/contract. 
     # Because it's a Pydantic schema, FastAPI reads the JSON body, validates it against the schema, and passes in the finished object.
     # What is passed is an object with the track_ids (instance of TasteProfileRequest class)
@@ -245,26 +256,122 @@ def get_taste_profile(request: TasteProfileRequest):
     # Defensive check: ensure at least one requested track exists in our dataset
     selected = data[data["track_id"].isin(track_ids)]
     if selected.empty: # raise error if there are no matches (defensive check)
-        raise HTTPException(status_code=404, detail="None of the provided track IDs were found in the dataset.",)
+        raise HTTPException(status_code=404, detail="None of the provided track IDs were found in the dataset.")
 
     # Delegate the pure mathematical computation to backend/engine.py
     # engine.py is imported which contains the KMeans Algorithm function required which is called upon and its output is returned
-    return taste_profile(track_ids, data)
+    profile = taste_profile(track_ids, data)
+
+    # Server-side background pre-warming: fetch previews for recommended songs ahead of time
+    def prewarm_recs(recs):
+        for r in recs:
+            try:
+                get_song_preview(track_name=r.get("track_name", ""), artist=r.get("artists", ""))
+            except Exception:
+                pass
+    background_tasks.add_task(prewarm_recs, profile.get("recommendations", []))
+
+    return profile
 
 
 # ─── ROUTE 3: SAMPLED PCA POINTS FOR SOUND MAP (HTTP GET) ─────────────────────
 @app.get("/api/sound-map", tags=["Visualisation"], summary="Sampled PCA points for the sound map")
-def sound_map(n: int = Query(6000, ge=500, le=20000)):
+def sound_map(n: int = Query(3500, ge=500, le=20000)):
     """
     Returns sampled 2D PCA points across all 127,900 tracks for background scatterplot
-    rendering, along with explained variance ratio of Component 1 and Component 2.
+    rendering, with balanced stratified sampling across all 7 sound personas so dots
+    appear cleanly and uniformly distributed without dense clumping.
     """
     key = f"sound_map_{n}"
     if key not in artifacts:
-        s = artifacts["data"].sample(n=n, random_state=42)
+        import pandas as pd
+        df = artifacts["data"]
+        per_persona = max(50, n // 7)
+        sampled = pd.concat([
+            g.sample(n=min(len(g), per_persona), random_state=42)
+            for _, g in df.groupby("persona")
+        ])
         artifacts[key] = {
-            "points": s[["pca_x", "pca_y", "persona"]].round(3).to_dict(orient="records"),
+            "points": sampled[["pca_x", "pca_y", "persona"]].round(3).to_dict(orient="records"),
             "explained_variance": [round(float(v), 3) for v in artifacts["pca_2d"].explained_variance_ratio_[:2]],
         }
     return artifacts[key]
 
+
+# ─── ROUTE 4: AUDIO CHORUS PREVIEW (HTTP GET) ─────────────────────────────────
+preview_cache = {}
+http_session = requests.Session()
+http_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
+
+def clean_music_query(track_name: str, artist: str):
+    """
+    Cleans track titles and collaborator lists to maximize search engine hit rate.
+    Extracts primary artist (handles semicolons/commas) and strips remastered/live tags.
+    """
+    primary_artist = re.split(r"[;,]", artist)[0].strip()
+    clean_title = re.sub(r"\(feat\..*?\)", "", track_name, flags=re.IGNORECASE)
+    clean_title = re.sub(r"\[feat\..*?\]", "", clean_title, flags=re.IGNORECASE)
+    clean_title = re.sub(r"-\s*(remaster(ed)?|live|radio edit|bonus track|deluxe).*", "", clean_title, flags=re.IGNORECASE)
+    clean_title = re.sub(r"\(.*?remaster.*?\)", "", clean_title, flags=re.IGNORECASE)
+    return primary_artist.strip(), clean_title.strip()
+
+@app.get("/api/preview", tags=["Audio Preview"], summary="Fetch 30s audio preview stream URL")
+def get_song_preview(
+    track_name: str = Query(..., min_length=1, description="Track title"),
+    artist: str = Query(..., min_length=1, description="Artist name"),
+):
+    """
+    Returns a streaming 30s audio preview URL for a given track.
+    Prioritizes iTunes (permanent, non-expiring AAC stream URLs).
+    Falls back to Deezer (15-min tokenized MP3 stream URLs with automatic cache TTL).
+    """
+    cache_key = f"{artist.lower().strip()} - {track_name.lower().strip()}"
+    now = time.time()
+    if cache_key in preview_cache:
+        entry = preview_cache[cache_key]
+        if entry.get("expires_at", float("inf")) > now:
+            return entry["data"]
+
+    primary_artist, clean_title = clean_music_query(track_name, artist)
+    queries = [
+        f"{primary_artist} {clean_title}",
+        f"{artist} {track_name}",
+    ]
+    # Deduplicate while preserving order
+    queries = list(dict.fromkeys(q for q in queries if q.strip()))
+
+    # 1. Primary: iTunes Search API (Permanent URLs with no token expiration)
+    for q in queries:
+        try:
+            url = f"https://itunes.apple.com/search?term={urllib.parse.quote(q)}&entity=song&limit=1"
+            resp = http_session.get(url, timeout=3.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                results = data.get("results", [])
+                if results and results[0].get("previewUrl"):
+                    res = {"status": "available", "preview_url": results[0]["previewUrl"], "source": "itunes"}
+                    preview_cache[cache_key] = {"data": res, "expires_at": float("inf")}
+                    return res
+        except Exception:
+            pass
+
+    # 2. Fallback: Deezer API (Tokens expire in 15 mins; cache for 10 mins so links are always fresh)
+    for q in queries:
+        try:
+            url = f"https://api.deezer.com/search?q={urllib.parse.quote(q)}&limit=1"
+            resp = http_session.get(url, timeout=3.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                results = data.get("data", [])
+                if results and results[0].get("preview"):
+                    res = {"status": "available", "preview_url": results[0]["preview"], "source": "deezer"}
+                    preview_cache[cache_key] = {"data": res, "expires_at": now + 600}
+                    return res
+        except Exception:
+            pass
+
+    res = {"status": "unavailable", "preview_url": None, "source": None}
+    preview_cache[cache_key] = {"data": res, "expires_at": now + 3600}
+    return res

@@ -37,3 +37,9 @@ Thumbs.db
 *.zip
 *.7z
 
+# Local Agent Workspace & Design Prototypes
+.agents/
+*_redesign*.html
+*_comparison*.html
+Sonality_*.html
+

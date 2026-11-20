@@ -162,8 +162,8 @@ The core inference engine receives a list of Spotify `track_id`s and computes:
 
 ### 1. Clone & Setup
 ```bash
-git clone https://github.com/RyWidjaya/spotify-taste-profile-engine.git
-cd spotify-taste-profile-engine
+git clone https://github.com/RyWidjaya/music-taste-profile-engine.git
+cd music-taste-profile-engine
 python -m venv venv
 # Windows:
 venv\Scripts\activate
@@ -172,25 +172,31 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Run the Notebooks
+### 2. Run the Web Application
+```bash
+uvicorn backend.main:app --reload
+```
+Open `http://localhost:8000` to interact with the Sonality taste profiler.
+
+### 3. Run the Notebooks (Optional)
 Launch Jupyter Notebook to explore data preparation, augmentation, and model training:
 ```bash
 # Sequential notebook workflow (01 -> 02 -> 03 -> 04):
-jupyter notebook 01_cleaning.ipynb
-jupyter notebook 02_eda.ipynb
-jupyter notebook 03_data_augmentation.ipynb
-jupyter notebook 04_ml_pipeline.ipynb
+jupyter notebook notebooks/01_cleaning.ipynb
+jupyter notebook notebooks/02_eda.ipynb
+jupyter notebook notebooks/03_data_augmentation.ipynb
+jupyter notebook notebooks/04_ml_pipeline.ipynb
 ```
 
 ---
 
 ## 🛠️ Tech Stack
-* **Language & Core:** Python, NumPy, Pandas, Scipy
-* **Machine Learning & Modeling:** Scikit-Learn (KMeans, PCA, PowerTransformer)
+* **Language & Core:** Python 3.11+, NumPy, Pandas, Scipy
+* **Machine Learning & Modeling:** Scikit-Learn (KMeans, PCA, PowerTransformer / Yeo-Johnson)
 * **Model Serialization:** Joblib
-* **Data Visualization:** Matplotlib, Seaborn
-* **Backend:** FastAPI, Uvicorn, Pydantic
-* **Frontend:** HTML5, TailwindCSS, Chart.js / Canvas
+* **Backend:** FastAPI, Uvicorn, Pydantic, HTTPX
+* **Frontend:** Vanilla ES6+, Modern Responsive CSS (Container Queries, Dark Editorial Aesthetic), HTML5 Canvas 2D Visualizers, `html-to-image`
+* **Containerization & Cloud:** Docker, Google Cloud Run / Render
 
 ---
 

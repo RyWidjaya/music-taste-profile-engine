@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.parquet
+.git/
+.gitignore
+.agents/
+.ipynb_checkpoints/
+notebooks/
+*.ipynb
+*_redesign*.html
+*_comparison*.html
+Sonality_*.html
