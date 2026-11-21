@@ -85,6 +85,9 @@ const FEATURE_COPY = {
   acousticness: { label: "Acousticness", hint: "How acoustic vs. produced it sounds" },
 };
 
+// Purge any legacy persisted card name so shared devices/sessions start clean
+try { localStorage.removeItem("sonality_user_name"); } catch (_) {}
+
 const state = {
   tracks: [],
   status: "empty",         // empty | loading | results | error
@@ -97,6 +100,7 @@ const state = {
   focusPersona: null,
   hoverTrackId: null,
   hoverSource: null,       // "map" | "list"
+  userName: "",            // In-memory active session only (never saved to localStorage)
   search: { query: "", results: [], active: -1, status: "idle" },
 };
 
@@ -1263,7 +1267,7 @@ async function runSearch(query) {
   el.searchOptions.innerHTML = "";
 
   try {
-    const data = await getJSON(`/api/search?q=${encodeURIComponent(trimmed)}&limit=30`);
+    const data = await getJSON(`/api/search?q=${encodeURIComponent(trimmed)}&limit=30&_t=${Date.now()}`);
     if (state.search.query.trim() !== trimmed) return;
     state.search.results = data || [];
     state.search.status = "done";
@@ -1339,6 +1343,11 @@ function clearTracks() {
   state.status = "empty";
   state.profile = null;
   state.analyzedIds = [];
+  state.userName = "";
+  const nameInput = document.getElementById("sc-user-name");
+  if (nameInput) nameInput.value = "";
+  const clearNameBtn = document.getElementById("sc-name-clear");
+  if (clearNameBtn) clearNameBtn.hidden = true;
   renderAll();
   announce("Cleared all songs");
 }
@@ -1756,10 +1765,9 @@ function openShareModal() {
   }
   const nameInput = document.getElementById("sc-user-name");
   const clearNameBtn = document.getElementById("sc-name-clear");
-  let savedName = "";
-  try { savedName = localStorage.getItem("sonality_user_name") || ""; } catch (_) {}
-  if (nameInput) nameInput.value = savedName;
-  if (clearNameBtn) clearNameBtn.hidden = !savedName;
+  const currentName = (state.userName || "").trim();
+  if (nameInput) nameInput.value = currentName;
+  if (clearNameBtn) clearNameBtn.hidden = !currentName;
 
   updateShareCardData();
   const modal = document.getElementById("share-modal");
@@ -1821,7 +1829,7 @@ function updateShareCardData() {
   let userName = "";
   try {
     const inputEl = document.getElementById("sc-user-name");
-    userName = inputEl && inputEl.value !== undefined ? inputEl.value : (localStorage.getItem("sonality_user_name") || "");
+    userName = inputEl && inputEl.value !== undefined ? inputEl.value : (state.userName || "");
   } catch (_) {}
   const cleanName = (userName || "").trim();
   const subject = cleanName
@@ -2221,7 +2229,7 @@ async function downloadShareCardPng() {
   try {
     const blob = await exportShareCardBlob();
     let savedName = "";
-    try { savedName = (localStorage.getItem("sonality_user_name") || "").trim(); } catch (_) {}
+    savedName = (state.userName || (document.getElementById("sc-user-name") ? document.getElementById("sc-user-name").value : "")).trim();
     const prefix = savedName ? savedName.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "my-sound";
     const dominantName = (state.profile && state.profile.persona_breakdown) ? Object.keys(state.profile.persona_breakdown)[0] : "card";
     const fileName = `sonality-${prefix}-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
@@ -2250,7 +2258,7 @@ async function downloadShareCardPng() {
     try {
       const blob = await exportShareCardBlob();
       let savedName = "";
-      try { savedName = (localStorage.getItem("sonality_user_name") || "").trim(); } catch (_) {}
+      savedName = (state.userName || (document.getElementById("sc-user-name") ? document.getElementById("sc-user-name").value : "")).trim();
       const prefix = savedName ? savedName.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "my-sound";
       const dominantName = (state.profile && state.profile.persona_breakdown) ? Object.keys(state.profile.persona_breakdown)[0] : "card";
       const fileName = `sonality-${prefix}-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
@@ -2487,10 +2495,7 @@ function wireEvents() {
   if (nameInput) {
     nameInput.addEventListener("input", (e) => {
       const val = e.target.value;
-      try {
-        if (val.trim()) localStorage.setItem("sonality_user_name", val.trim());
-        else localStorage.removeItem("sonality_user_name");
-      } catch (_) {}
+      state.userName = val;
       if (clearNameBtn) clearNameBtn.hidden = !val;
       const eyebrow = document.getElementById("sc-eyebrow");
       if (eyebrow) eyebrow.textContent = formatLeadIn(val);
@@ -2502,7 +2507,7 @@ function wireEvents() {
         nameInput.value = "";
         nameInput.focus();
       }
-      try { localStorage.removeItem("sonality_user_name"); } catch (_) {}
+      state.userName = "";
       clearNameBtn.hidden = true;
       const eyebrow = document.getElementById("sc-eyebrow");
       if (eyebrow) eyebrow.textContent = formatLeadIn("");

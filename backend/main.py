@@ -249,10 +249,12 @@ def health_check():
 # summary is the title displayed next to the URL in the /docs page 
 @app.get("/api/search", response_model=list[TrackSearchResult], tags=["Search"], summary="Search tracks by title or artist",)
 def search_tracks(
+    response: Response,
     # Query(...) indicates to read the value from the URL's query string (the "?q=queen&limit=30" part, as key=value pairs) and validates it against the rules (min_length, ge/le).
     q: str = Query(..., min_length=1, description="Search keyword for track name or artist"), # converts the query to a python string
     limit: int = Query(30, ge=1, le=100, description="Max number of results to return"),
 ):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     """
     Lightning-fast autocomplete search against our 128k in-memory dataset.
     Uses tiered relevance ranking:
@@ -338,7 +340,8 @@ def search_tracks(
 # - Input contract: `TasteProfileRequest` validates track_ids is a non-empty list.
 # - Output contract: `TasteProfileResponse` guarantees the 5 diagnostic metrics.
 @app.post("/api/taste-profile", response_model=TasteProfileResponse, tags=["ML Inference"], summary="Compute listener taste diagnostic from track IDs")
-def get_taste_profile(request: TasteProfileRequest, background_tasks: BackgroundTasks): 
+def get_taste_profile(request: TasteProfileRequest, background_tasks: BackgroundTasks, response: Response): 
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate" 
     # `request` is just the parameter name; `TasteProfileRequest` is its type/contract. 
     # Because it's a Pydantic schema, FastAPI reads the JSON body, validates it against the schema, and passes in the finished object.
     # What is passed is an object with the track_ids (instance of TasteProfileRequest class)
