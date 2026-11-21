@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#17121B">
   <title>Sonality: What's Your Sound? Unsupervised Music Taste Profiler</title>
@@ -42,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=8">
+  <link rel="stylesheet" href="/static/styles.css?v=9">
 </head>
 <body>
   <a class="skip" href="#main">Skip to results</a>
@@ -168,9 +168,9 @@
           <div class="axis-scale-wrapper">
             <div class="axis-ticks">
               <span class="axis-tick-item" style="left: 0%;"><span>0</span></span>
-              <span class="axis-tick-item" style="left: 25%;"><span>25</span></span>
-              <span class="axis-tick-item typical-tick" style="left: 50%;"><span>50 Typical</span></span>
-              <span class="axis-tick-item" style="left: 75%;"><span>75</span></span>
+              <span class="axis-tick-item axis-tick-25" style="left: 25%;"><span class="tick-label">25</span></span>
+              <span class="axis-tick-item typical-tick" style="left: 50%;"><span>50 <span class="typical-word">Typical</span></span></span>
+              <span class="axis-tick-item axis-tick-75" style="left: 75%;"><span class="tick-label">75</span></span>
               <span class="axis-tick-item" style="left: 100%;"><span>100</span></span>
             </div>
           </div>
@@ -293,6 +293,6 @@
   </dialog>
 
   <script src="/static/html-to-image.js"></script>
-  <script src="/static/app.js?v=8"></script>
+  <script src="/static/app.js?v=9"></script>
 </body>
 </html>
