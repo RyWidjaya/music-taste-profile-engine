@@ -8,6 +8,11 @@
 </p>
 
 <p align="center">
+  <a href="https://sonality-165122969919.australia-southeast1.run.app"><strong>🌐 Try the Live Web App »</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://sonality-165122969919.australia-southeast1.run.app"><img src="https://img.shields.io/badge/Status-Live%20on%20Google%20Cloud%20Run-success.svg?style=flat&logo=googlecloud" alt="Live Status"></a>
   <a href="https://github.com/RyWidjaya/sonality"><img src="https://img.shields.io/badge/Python-3.11%2B-blue.svg" alt="Python"></a>
   <a href="https://scikit-learn.org/"><img src="https://img.shields.io/badge/Scikit--Learn-Machine%20Learning-orange.svg" alt="Scikit-Learn"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-Backend%20API-teal.svg" alt="FastAPI"></a>
