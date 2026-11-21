@@ -165,6 +165,11 @@ def serve_robots():
     """Instructs Googlebot and search engine crawlers to index the site."""
     return PlainTextResponse("User-agent: *\nAllow: /\nSitemap: https://app.sonality.workers.dev/sitemap.xml\n", media_type="text/plain")
 
+@app.get("/google20bc053e60958d7f.html", include_in_schema=False)
+def serve_google_verify():
+    """Google Search Console domain ownership verification."""
+    return PlainTextResponse("google-site-verification: google20bc053e60958d7f.html", media_type="text/html")
+
 @app.get("/sitemap.xml", include_in_schema=False)
 def serve_sitemap():
     """XML sitemap for Google Search Console and web crawlers."""
