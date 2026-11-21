@@ -166,10 +166,29 @@ def serve_index():
 if os.path.isdir(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
-@app.get("/robots.txt", include_in_schema=False)
-def serve_robots():
-    """Instructs Googlebot and search engine crawlers to index the site."""
-    return PlainTextResponse("User-agent: *\nAllow: /\nSitemap: https://app.sonality.workers.dev/sitemap.xml\n", media_type="text/plain")
+# ─── ROUTE: ROOT STATIC ASSETS (Favicons, Manifest, Robots) ───────────────────
+# Googlebot and modern browsers request favicons and manifest directly at root.
+STATIC_ROOT_FILES = {
+    "favicon.ico": "image/x-icon",
+    "favicon.svg": "image/svg+xml",
+    "favicon-48x48.png": "image/png",
+    "favicon-96x96.png": "image/png",
+    "favicon-192x192.png": "image/png",
+    "favicon-512x512.png": "image/png",
+    "apple-touch-icon.png": "image/png",
+    "site.webmanifest": "application/manifest+json",
+    "robots.txt": "text/plain",
+}
+
+for root_file, content_type in STATIC_ROOT_FILES.items():
+    def _create_handler(fn=root_file, mime=content_type):
+        def _handler():
+            fp = os.path.join(FRONTEND_DIR, fn)
+            if not os.path.exists(fp):
+                raise HTTPException(status_code=404, detail=f"{fn} not found")
+            return FileResponse(fp, media_type=mime)
+        return _handler
+    app.get(f"/{root_file}", include_in_schema=False)(_create_handler(root_file, content_type))
 
 @app.get("/google20bc053e60958d7f.html", include_in_schema=False)
 def serve_google_verify():

@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#17121B"/>
-  <circle cx="247.8" cy="68.2" r="47.2" fill="#F6C343"/>
-  <circle cx="336.6" cy="119.4" r="47.1" fill="#EA6C5A"/>
-  <circle cx="168.9" cy="134.3" r="47.2" fill="#F8A9C9"/>
-  <circle cx="255.5" cy="246.9" r="60" fill="#7DF29C"/>
-  <circle cx="342.2" cy="313.5" r="47.2" fill="#8398FE"/>
-  <circle cx="174.4" cy="374.5" r="47.1" fill="#42B194"/>
-  <circle cx="263.2" cy="425.7" r="47.2" fill="#DC6ED0"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#121216"/>
+  <circle cx="250.6" cy="130.4" r="33.2" fill="#F6C343"/>
+  <circle cx="312.9" cy="166.4" r="33.1" fill="#EA6C5A"/>
+  <circle cx="195.1" cy="176.9" r="33.2" fill="#F8A9C9"/>
+  <circle cx="256.0" cy="256.0" r="42.1" fill="#7DF29C"/>
+  <circle cx="316.9" cy="302.7" r="33.2" fill="#8398FE"/>
+  <circle cx="199.0" cy="345.6" r="33.1" fill="#42B194"/>
+  <circle cx="261.4" cy="381.6" r="33.2" fill="#DC6ED0"/>
 </svg>
