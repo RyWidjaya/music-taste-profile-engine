@@ -2012,7 +2012,7 @@ function updateShareCardData() {
     }
   }
 
-  // 4. Key Tracks: Flipped Spanning Layout with Scaled Up 46x46 Album Art (n < 3 edge case supported)
+  // 4. Key Tracks: Flipped Spanning Layout with Standardized 44x44 Album Art (n < 3 edge case supported)
   const tracksEl = document.getElementById("sc-tracks");
   if (tracksEl && anchor) {
     const anchorColor = colorOf(anchor.persona);

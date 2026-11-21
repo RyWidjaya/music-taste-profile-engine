@@ -2162,12 +2162,12 @@ a { color: inherit; }
   border-radius: 999px;
 }
 
-/* 4. Key Tracks: Flipped Spanning Layout with Scaled Up 46x46 Album Art */
+/* 4. Key Tracks: Flipped Spanning Layout with Standardized 44x44 Album Art */
 .sc-tracks {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3.2cqw;
+  gap: 4cqw; /* 16px logical gap between Anchor and Outlier */
   min-height: 24cqw;
 }
 
@@ -2189,17 +2189,13 @@ a { color: inherit; }
 }
 
 .sc-track-thumb {
-  width: 12.8cqw;
-  height: 12.8cqw;
-  min-width: 51px;
-  min-height: 51px;
-  max-width: 51px;
-  max-height: 51px;
-  border-radius: 4px;
+  width: 11cqw;
+  height: 11cqw;
+  border-radius: 1.5cqw; /* 6px logical */
   overflow: hidden;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   display: flex;
   align-items: center;
