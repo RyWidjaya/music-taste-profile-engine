@@ -1568,6 +1568,14 @@ function pausePreview() {
    SONALITY SHARE CARD (4:5 Editorial Portrait Card & Modal)
    ============================================================================== */
 
+const isIOS = () => {
+  return (
+    typeof navigator !== "undefined" &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1))
+  );
+};
+
 function openShareModal() {
   if (!state.profile || !state.profile.persona_breakdown) {
     alert("Please analyze your taste first to generate your Sonality card.");
@@ -1576,6 +1584,10 @@ function openShareModal() {
   updateShareCardData();
   const modal = document.getElementById("share-modal");
   if (!modal) return;
+  const dlText = document.getElementById("sc-dl-text");
+  if (dlText) {
+    dlText.textContent = isIOS() ? "Save to Photos" : "Download image";
+  }
   const shareBtn = document.getElementById("sc-share");
   if (shareBtn) {
     shareBtn.hidden = !(typeof navigator !== "undefined" && Boolean(navigator.share));
@@ -1749,24 +1761,55 @@ async function exportShareCardBlob() {
 async function downloadShareCardPng() {
   const btn = document.getElementById("sc-dl");
   const textEl = document.getElementById("sc-dl-text");
-  const oldText = textEl ? textEl.textContent : "Download image";
-  if (textEl) textEl.textContent = "Rendering 1080p…";
+  const isApple = isIOS();
+  const defaultText = isApple ? "Save to Photos" : "Download image";
+  const oldText = textEl ? textEl.textContent : defaultText;
+  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1080p…";
   if (btn) btn.disabled = true;
 
   try {
     const blob = await exportShareCardBlob();
     const dominantName = (state.profile && state.profile.persona_breakdown) ? Object.keys(state.profile.persona_breakdown)[0] : "card";
     const fileName = `sonality-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = fileName;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    if (textEl) textEl.textContent = "Downloaded!";
-    setTimeout(() => { if (textEl) textEl.textContent = oldText; }, 1800);
+    const file = new File([blob], fileName, { type: "image/png" });
+
+    // iOS Safari routes <a download> to the Files app rather than Camera Roll.
+    // Calling navigator.share with the image file opens the native iOS Share Sheet,
+    // which has "Save Image" right at the top to save directly into the Apple Photos app.
+    if (isApple && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+      });
+      if (textEl) textEl.textContent = "Saved!";
+      setTimeout(() => { if (textEl) textEl.textContent = defaultText; }, 1800);
+    } else {
+      // Standard direct download for PC, Android, and other browsers
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      if (textEl) textEl.textContent = "Downloaded!";
+      setTimeout(() => { if (textEl) textEl.textContent = defaultText; }, 1800);
+    }
   } catch (err) {
-    if (textEl) textEl.textContent = "Error saving";
-    setTimeout(() => { if (textEl) textEl.textContent = oldText; }, 2000);
+    if (err && err.name === "AbortError") {
+      // User cancelled iOS share sheet — normal behavior
+      if (textEl) textEl.textContent = defaultText;
+      return;
+    }
+    // Fallback if sharing was interrupted
+    try {
+      const blob = await exportShareCardBlob();
+      const dominantName = (state.profile && state.profile.persona_breakdown) ? Object.keys(state.profile.persona_breakdown)[0] : "card";
+      const fileName = `sonality-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (_) {}
+    if (textEl) textEl.textContent = defaultText;
   } finally {
     if (btn) btn.disabled = false;
   }
