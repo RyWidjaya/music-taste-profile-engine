@@ -76,7 +76,12 @@ async def lifespan(app: FastAPI):
         raise FileNotFoundError(f"Modeled data not found at {data_path}. Run 04_ml_pipeline.ipynb first.")
     
     # instead of calling pd.read_csv every single time it's read once when the server starts and stored in a dict
-    artifacts["data"] = pd.read_csv(data_path) # store dataset to artifacts dict for easy access - lives in RAM 
+    df = pd.read_csv(data_path)
+    df["_title_lower"] = df["track_name"].str.lower().fillna("")
+    df["_artists_lower"] = df["artists"].str.lower().fillna("")
+    df["_comb_ta"] = df["_title_lower"] + " " + df["_artists_lower"]
+    df["_comb_at"] = df["_artists_lower"] + " " + df["_title_lower"]
+    artifacts["data"] = df 
 
     # Load persona metadata definitions
     meta_path = os.path.join(models_dir, "persona_metadata.json")
@@ -224,36 +229,74 @@ def health_check():
 # summary is the title displayed next to the URL in the /docs page 
 @app.get("/api/search", response_model=list[TrackSearchResult], tags=["Search"], summary="Search tracks by title or artist",)
 def search_tracks(
-    # Query(...) indicates to read the value from the URL's query string (the "?q=queen&limit=10" part, as key=value pairs) and validates it against the rules (min_length, ge/le).
+    # Query(...) indicates to read the value from the URL's query string (the "?q=queen&limit=30" part, as key=value pairs) and validates it against the rules (min_length, ge/le).
     q: str = Query(..., min_length=1, description="Search keyword for track name or artist"), # converts the query to a python string
     limit: int = Query(30, ge=1, le=100, description="Max number of results to return"),
 ):
     """
     Lightning-fast autocomplete search against our 128k in-memory dataset.
-    Uses vectorized string matching across track_name and artists.
+    Uses tiered relevance ranking:
+      Tier 1: Exact whole-title match
+      Tier 2: Exact artist match or combined "title artist" / "artist title" match
+      Tier 3: Title prefix or whole-word boundary match in title
+      Tier 4: Artist prefix or whole-word boundary match in artist
+      Tier 5: General substring match across title or artist
+    Deduplicates strictly by normalized (track_name, artists) pair, keeping highest popularity.
     """
+    import numpy as np
 
-    # obtains data and the keyword stripped 
-    data = artifacts["data"] # data is the df from the csv 
+    data = artifacts["data"]
     keyword = q.strip().lower()
+    if not keyword:
+        return []
 
-    # Fast vectorized search in RAM (boolean masking) - either looking for matching track name or artist
-    # Returns sequence of T/F for every single track indicating if it matches
-    mask = (
-        data["track_name"].str.lower().str.contains(keyword, na=False)
-        | data["artists"].str.lower().str.contains(keyword, na=False)
+    t0 = data.get("_title_lower")
+    a0 = data.get("_artists_lower")
+    if t0 is None or a0 is None:
+        t0 = data["track_name"].str.lower().fillna("")
+        a0 = data["artists"].str.lower().fillna("")
+        comb_ta = t0 + " " + a0
+    else:
+        comb_ta = data["_comb_ta"]
+
+    # Candidate pool: boolean mask for any substring match across title, artist, or combined
+    cand_mask = (
+        t0.str.contains(keyword, na=False, regex=False)
+        | a0.str.contains(keyword, na=False, regex=False)
+        | comb_ta.str.contains(keyword, na=False, regex=False)
     )
 
-    # Sort matches by popularity descending so famous songs show up first
-    # Indexes data using the boolean mask to return the matches and sorts them returning only "limit" number of matches
+    if not cand_mask.any():
+        return []
+
+    cands = data[cand_mask].copy()
+    ct0 = cands["_title_lower"] if "_title_lower" in cands else cands["track_name"].str.lower().fillna("")
+    ca0 = cands["_artists_lower"] if "_artists_lower" in cands else cands["artists"].str.lower().fillna("")
+    cc_ta = cands["_comb_ta"] if "_comb_ta" in cands else ct0 + " " + ca0
+    cc_at = cands["_comb_at"] if "_comb_at" in cands else ca0 + " " + ct0
+
+    word_pat = r"\b" + re.escape(keyword) + r"\b"
+
+    rank = np.full(len(cands), 5, dtype=int)
+    # Tier 4: Artist prefix or artist word boundary
+    rank[ca0.str.startswith(keyword) | ca0.str.contains(word_pat, regex=True, na=False)] = 4
+    # Tier 3: Title prefix or title word boundary
+    rank[ct0.str.startswith(keyword) | ct0.str.contains(word_pat, regex=True, na=False)] = 3
+    # Tier 2: Exact artist match or combined full match
+    rank[(ca0 == keyword) | (cc_ta == keyword) | (cc_at == keyword)] = 2
+    # Tier 1: Exact whole-title match
+    rank[ct0 == keyword] = 1
+
+    cands["_search_tier"] = rank
+    # Deduplicate strictly by normalized (track_name, artists) pair, keeping highest popularity
+    cands["_norm_key"] = ct0.str.strip() + ":::" + ca0.str.strip()
     matches = (
-        data[mask]
-        .sort_values(by="popularity", ascending=False)
+        cands.sort_values(by=["_search_tier", "popularity"], ascending=[True, False])
+        .drop_duplicates(subset=["_norm_key"])
         .head(limit)
     )
 
     # Return only the 6 columns required by TrackSearchResult
-    # always return a dict so it can be rendered as json
     search_cols = ["track_id", "track_name", "artists", "album_name", "track_genre", "persona"]
     return matches[search_cols].to_dict(orient="records")
 

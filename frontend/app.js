@@ -2045,9 +2045,12 @@ function updateShareCardData() {
             <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
           </div>
         </div>
-        <div class="sc-track-badge">
-          <span class="sc-track-glyph">${anchorGlyph}</span>
-          <span class="sc-track-tag">Anchor</span>
+        <div class="sc-track-badge" data-tip="Anchor: The track closest on average to all your selected songs (medoid)" title="Anchor: The track closest on average to all your selected songs (medoid)">
+          <div class="sc-track-badge-top">
+            <span class="sc-track-glyph">${anchorGlyph}</span>
+            <span class="sc-track-tag">Anchor</span>
+          </div>
+          <span class="sc-track-subtag">Core center</span>
         </div>
       </div>
     `;
@@ -2061,9 +2064,12 @@ function updateShareCardData() {
             <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
           </div>
         </div>
-        <div class="sc-track-badge">
-          <span class="sc-track-glyph">${outlierGlyph}</span>
-          <span class="sc-track-tag">Outlier</span>
+        <div class="sc-track-badge" data-tip="Outlier: The track furthest from the rest of your taste" title="Outlier: The track furthest from the rest of your taste">
+          <div class="sc-track-badge-top">
+            <span class="sc-track-glyph">${outlierGlyph}</span>
+            <span class="sc-track-tag">Outlier</span>
+          </div>
+          <span class="sc-track-subtag">Furthest pull</span>
         </div>
       </div>
     ` : '';
@@ -2147,10 +2153,10 @@ async function exportShareCardBlob() {
   const card = document.getElementById("share-card");
   if (!card) throw new Error("Share card element not found");
 
-  // 400x565 logical aspect ratio -> 800x1130 at 2x retina (full-bleed matte, no outer border)
+  // 400x600 logical aspect ratio -> 800x1200 at 2x retina (full-bleed matte, no outer border)
   const stage = document.createElement("div");
   stage.className = "sc-frame";
-  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;height:1130px;border-radius:0;box-shadow:none;border:none;background:#141117;z-index:-1;";
+  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;height:1200px;border-radius:0;box-shadow:none;border:none;background:#141117;z-index:-1;";
   const clone = card.cloneNode(true);
   clone.removeAttribute("id");
   clone.style.border = "none";
@@ -2162,7 +2168,7 @@ async function exportShareCardBlob() {
   try {
     fitCard(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const options = { width: 800, height: 1130, pixelRatio: 2, cacheBust: true };
+    const options = { width: 800, height: 1200, pixelRatio: 2, cacheBust: true };
     let blob;
     try {
       blob = await htmlToImage.toBlob(clone, options);
@@ -2181,7 +2187,7 @@ async function downloadShareCardPng() {
   const isApple = isIOS();
   const defaultText = isApple ? "Save to Photos" : "Download image";
   const oldText = textEl ? textEl.textContent : defaultText;
-  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1130p…";
+  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1200p…";
   if (btn) btn.disabled = true;
 
   try {

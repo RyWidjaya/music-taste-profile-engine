@@ -1856,8 +1856,32 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 14px;
+}
+
+.sc-info-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11.5px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.sc-info-pill:hover,
+.sc-info-pill:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.22);
+  outline: none;
 }
 
 .sc-name-label {
@@ -1925,7 +1949,7 @@ a { color: inherit; }
 .sc-frame {
   container-type: inline-size;
   width: min(100%, 390px);
-  aspect-ratio: 400 / 565;
+  aspect-ratio: 400 / 600;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.48), 0 26px 52px -28px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -1939,7 +1963,7 @@ a { color: inherit; }
   height: 100%;
   box-sizing: border-box;
   position: relative;
-  padding: 6cqw 6.4cqw 4.8cqw;
+  padding: 5.6cqw 6.4cqw 5cqw;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2187,12 +2211,12 @@ a { color: inherit; }
 }
 
 .sc-track-thumb {
-  width: 11.5cqw;
-  height: 11.5cqw;
-  min-width: 46px;
-  min-height: 46px;
-  max-width: 46px;
-  max-height: 46px;
+  width: 12.8cqw;
+  height: 12.8cqw;
+  min-width: 51px;
+  min-height: 51px;
+  max-width: 51px;
+  max-height: 51px;
   border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;
@@ -2253,10 +2277,19 @@ a { color: inherit; }
 
 .sc-track-badge {
   display: flex;
-  align-items: center;
-  gap: 1.8cqw; /* ~7px */
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.6cqw;
   flex-shrink: 0;
   text-align: right;
+  cursor: help;
+}
+
+.sc-track-badge-top {
+  display: flex;
+  align-items: center;
+  gap: 1.6cqw;
 }
 
 .sc-track-glyph {
@@ -2278,6 +2311,16 @@ a { color: inherit; }
   color: rgba(255, 255, 255, 0.70);
   letter-spacing: 0.01em;
   font-weight: 500;
+  line-height: 1.2;
+}
+
+.sc-track-subtag {
+  font-family: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 2.6cqw; /* ~10.5-11px */
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.50); /* ~48-52% white */
+  letter-spacing: 0.01em;
+  line-height: 1.15;
 }
 
 /* 5. Audio Profile */

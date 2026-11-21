@@ -31,7 +31,6 @@ def taste_profile(track_ids, data):
     for i in breakdown: 
         diversity_score += (-breakdown[i]) * np.log(breakdown[i]) # calculate diversity score by summing for all clusters
 
-
     diversity_score /= np.log(7) # divide by the maximum entropy which is log(7) - perfectly split taste amongst all 7 clusters
 
    # Percentiles 
@@ -87,6 +86,7 @@ def taste_profile(track_ids, data):
     anchor_track = None
     outlier_track = None
 
+
     def _track_dict(row):
         return {
             'track_id': str(row['track_id']),
@@ -114,11 +114,17 @@ def taste_profile(track_ids, data):
             anchor_track = _track_dict(selected.iloc[anchor_idx])
             outlier_track = None
         else:
+            # Vectorized pairwise Euclidean distance (replaces O(n^2) nested loops).
+            # O(n^2 * d) memory is negligible here since user playlists are small.
+            # Broadcast (n, 1, d) - (1, n, d) -> (n, n, d) coordinate differences for all track pairs.
             diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+            # Reduce along the feature axis -> (n, n) symmetric pairwise distance matrix.
             dist_matrix = np.sqrt(np.sum(diff**2, axis=-1))
+            # Sum each row -> (n,) total distance from each track to every other track
+            # (self-distance along the diagonal is 0; min = medoid/Anchor, max = Outlier).
             combined_dists = dist_matrix.sum(axis=1)
 
-            # Anchor: smallest combined Euclidean distance
+            # Anchor: smallest combined Euclidean distance (playlist medoid)
             # Tie-break: prefer the track belonging to the user's dominant cluster
             min_dist = np.min(combined_dists)
             min_candidates = np.where(np.isclose(combined_dists, min_dist, atol=1e-6))[0]
