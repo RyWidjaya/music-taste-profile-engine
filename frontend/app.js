@@ -1624,9 +1624,9 @@ function computeConvexHull(pts) {
  * Clamped strictly to safeR = 34px (63% of outer R=54) so dots and rings never collide with axis text.
  */
 function computeRefinedRadarMap(userSongs, anchorTrack, outlierTrack) {
-  const size = 120;
-  const mid = 60;
-  const safeR = 35; // safe plotting disk radius (~82% of outer radius 43px), keeping dots and rings cleanly inside rim with zero overlap on outside axis labels
+  const size = 132;
+  const mid = 66;
+  const safeR = 40; // safe plotting disk radius (~81.6% of outer radius 49px), keeping dots cleanly inside rim and zero collision with outside labels
 
   // 1. Group songs by persona and compute category centroids
   const catMap = new Map();
@@ -1784,16 +1784,36 @@ function updateShareCardData() {
 
   const dominantColor = colorOf(top.persona);
   card.style.setProperty("--c", dominantColor);
+  card.style.setProperty("--c-sheen", hexToRgba(dominantColor, 0.055));
 
-  // Personalized listener name lead-in
+  // 3. Dynamic Editorial Headline Copy
+  const topPct = top.pct;
+  const second = entries[1];
+  const secondPct = second ? second.pct : 0;
+  const isTied = Boolean(second && topPct === secondPct);
+
   let userName = "";
   try {
     const inputEl = document.getElementById("sc-user-name");
     userName = inputEl && inputEl.value !== undefined ? inputEl.value : (localStorage.getItem("sonality_user_name") || "");
   } catch (_) {}
+  const cleanName = (userName || "").trim();
+  const subject = cleanName
+    ? (cleanName.toLowerCase().endsWith("s") ? `${cleanName}’` : `${cleanName}’s`) + " sound"
+    : "My sound";
+
+  let leadInText = "";
+  if (isTied) {
+    leadInText = `${subject} is split, led by`;
+  } else if (topPct >= 50) {
+    leadInText = `${subject} is mostly`;
+  } else {
+    leadInText = `${subject} leans`;
+  }
+
   const eyebrowEl = document.getElementById("sc-eyebrow");
   if (eyebrowEl) {
-    eyebrowEl.textContent = formatLeadIn(userName);
+    eyebrowEl.textContent = leadInText;
   }
 
   const tagEl = document.getElementById("sc-tag");
@@ -1808,9 +1828,13 @@ function updateShareCardData() {
 
   const subEl = document.getElementById("sc-sub");
   if (subEl) {
-    subEl.innerHTML = entries.length === 1
-      ? `Pure ${esc(nameOf(top.persona))}<span class="sc-sep">&middot;</span>1 of 7 sounds`
-      : `With a streak of <strong>${esc(nameOf(entries[1].persona))}</strong><span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
+    if (entries.length === 1) {
+      subEl.innerHTML = `Pure <strong>${esc(nameOf(top.persona))}</strong><span class="sc-sep">&middot;</span>1 of 7 sounds`;
+    } else if (isTied) {
+      subEl.innerHTML = `Tied with <strong>${esc(nameOf(second.persona))}</strong><span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
+    } else {
+      subEl.innerHTML = `With a streak of <strong>${esc(nameOf(second.persona))}</strong><span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
+    }
   }
 
   // Anchor and Outlier track identification (n < 3 edge case: hide Outlier, display only Anchor)
@@ -1907,17 +1931,17 @@ function updateShareCardData() {
     }
 
     radarSvg.innerHTML = `
-      <circle cx="60" cy="60" r="43" fill="rgba(255, 255, 255, 0.016)" stroke="rgba(255, 255, 255, 0.12)" stroke-width="1" />
-      <circle cx="60" cy="60" r="28.6" fill="none" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="2 3" />
-      <circle cx="60" cy="60" r="14.3" fill="none" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="2 3" />
-      <line x1="17" y1="60" x2="103" y2="60" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
-      <line x1="60" y1="17" x2="60" y2="103" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
+      <circle cx="66" cy="66" r="49" fill="rgba(255, 255, 255, 0.016)" stroke="rgba(255, 255, 255, 0.12)" stroke-width="1" />
+      <circle cx="66" cy="66" r="32.7" fill="none" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="2 3" />
+      <circle cx="66" cy="66" r="16.3" fill="none" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="2 3" />
+      <line x1="17" y1="66" x2="115" y2="66" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
+      <line x1="66" y1="17" x2="66" y2="115" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
 
-      <!-- Outside axis labels with left and right rotated 90 degrees (~32-35% opacity) -->
-      <text x="60" y="8.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">UPBEAT</text>
-      <text x="60" y="112.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">MOODY</text>
-      <text x="7.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(-90 7.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">ACOUSTIC</text>
-      <text x="112.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(90 112.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">INTENSE</text>
+      <!-- High-contrast outside axis labels (~55% opacity, 9.5-10px) -->
+      <text x="66" y="9" text-anchor="middle" dy="0.3em" font-size="7.6" font-family="'IBM Plex Mono', monospace" fill="#FFFFFF" letter-spacing="0.08em" opacity="0.55">UPBEAT</text>
+      <text x="66" y="123" text-anchor="middle" dy="0.3em" font-size="7.6" font-family="'IBM Plex Mono', monospace" fill="#FFFFFF" letter-spacing="0.08em" opacity="0.55">MOODY</text>
+      <text x="9" y="66" text-anchor="middle" dy="0.3em" transform="rotate(-90 9 66)" font-size="7.4" font-family="'IBM Plex Mono', monospace" fill="#FFFFFF" letter-spacing="0.08em" opacity="0.55">ACOUSTIC</text>
+      <text x="123" y="66" text-anchor="middle" dy="0.3em" transform="rotate(90 123 66)" font-size="7.4" font-family="'IBM Plex Mono', monospace" fill="#FFFFFF" letter-spacing="0.08em" opacity="0.55">INTENSE</text>
 
       <polygon points="${hullPts}" fill="${hexToRgba(dominantColor, 0.14)}" stroke="${hexToRgba(dominantColor, 0.48)}" stroke-width="1.25" stroke-linejoin="round" />
       ${chords}
@@ -1988,7 +2012,7 @@ function updateShareCardData() {
     }
   }
 
-  // 4. Key Tracks: Restructured 2-Line Stacked Layout with Album Art (n < 3 edge case supported)
+  // 4. Key Tracks: Flipped Spanning Layout with Scaled Up 46x46 Album Art (n < 3 edge case supported)
   const tracksEl = document.getElementById("sc-tracks");
   if (tracksEl && anchor) {
     const anchorColor = colorOf(anchor.persona);
@@ -1996,7 +2020,7 @@ function updateShareCardData() {
     const outlierColor = hasOutlier ? colorOf(outlier.persona) : null;
 
     const anchorGlyph = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <circle cx="6" cy="6" r="5.1" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.05" />
+      <circle cx="6" cy="6" r="5.1" stroke="rgba(255, 255, 255, 0.55)" stroke-width="1.05" />
       <circle cx="6" cy="6" r="2.6" fill="${anchorColor}" />
     </svg>`;
 
@@ -2014,28 +2038,32 @@ function updateShareCardData() {
 
     const anchorRowHTML = `
       <div class="sc-track-row">
-        <div class="sc-track-left">
+        <div class="sc-track-main">
+          ${renderThumb(anchor.track_id, anchorColor)}
+          <div class="sc-track-info">
+            <span class="sc-track-title" title="${esc(anchor.track_name)}">${esc(anchor.track_name)}</span>
+            <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
+          </div>
+        </div>
+        <div class="sc-track-badge">
           <span class="sc-track-glyph">${anchorGlyph}</span>
           <span class="sc-track-tag">Anchor</span>
-        </div>
-        ${renderThumb(anchor.track_id, anchorColor)}
-        <div class="sc-track-info">
-          <span class="sc-track-title" title="${esc(anchor.track_name)}">${esc(anchor.track_name)}</span>
-          <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
         </div>
       </div>
     `;
 
     const outlierRowHTML = hasOutlier ? `
       <div class="sc-track-row">
-        <div class="sc-track-left">
+        <div class="sc-track-main">
+          ${renderThumb(outlier.track_id, outlierColor)}
+          <div class="sc-track-info">
+            <span class="sc-track-title" title="${esc(outlier.track_name)}">${esc(outlier.track_name)}</span>
+            <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
+          </div>
+        </div>
+        <div class="sc-track-badge">
           <span class="sc-track-glyph">${outlierGlyph}</span>
           <span class="sc-track-tag">Outlier</span>
-        </div>
-        ${renderThumb(outlier.track_id, outlierColor)}
-        <div class="sc-track-info">
-          <span class="sc-track-title" title="${esc(outlier.track_name)}">${esc(outlier.track_name)}</span>
-          <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
         </div>
       </div>
     ` : '';
@@ -2119,12 +2147,15 @@ async function exportShareCardBlob() {
   const card = document.getElementById("share-card");
   if (!card) throw new Error("Share card element not found");
 
-  // 400x565 logical aspect ratio -> 800x1130 at 2x retina
+  // 400x565 logical aspect ratio -> 800x1130 at 2x retina (full-bleed matte, no outer border)
   const stage = document.createElement("div");
   stage.className = "sc-frame";
-  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;height:1130px;border-radius:0;box-shadow:none;background:#141117;z-index:-1;";
+  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;height:1130px;border-radius:0;box-shadow:none;border:none;background:#141117;z-index:-1;";
   const clone = card.cloneNode(true);
   clone.removeAttribute("id");
+  clone.style.border = "none";
+  clone.style.borderRadius = "0";
+  clone.style.boxShadow = "none";
   stage.appendChild(clone);
   document.body.appendChild(stage);
 

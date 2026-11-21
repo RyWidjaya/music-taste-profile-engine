@@ -1944,7 +1944,7 @@ a { color: inherit; }
   flex-direction: column;
   overflow: hidden;
   background-color: #141117;
-  background-image: linear-gradient(180deg, rgba(227, 115, 232, 0.035) 0%, transparent 32%);
+  background-image: linear-gradient(180deg, var(--c-sheen, rgba(227, 115, 232, 0.055)) 0%, transparent 32%);
   color: #F4F2F7;
   font-family: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   user-select: none;
@@ -2003,7 +2003,7 @@ a { color: inherit; }
   font: 500 2.2cqw "IBM Plex Mono", ui-monospace, Menlo, monospace;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #766E80;
+  color: rgba(255, 255, 255, 0.60);
 }
 
 /* 2. Hero Identity Block */
@@ -2019,7 +2019,7 @@ a { color: inherit; }
   font-size: 3.8cqw;
   font-weight: 400;
   line-height: 1.2;
-  color: #A098AA;
+  color: rgba(255, 255, 255, 0.68);
   margin: 0;
 }
 
@@ -2037,23 +2037,23 @@ a { color: inherit; }
   margin: 1.8cqw 0 0;
   font-size: 2.8cqw;
   line-height: 1.25;
-  color: #A098AA;
+  color: rgba(255, 255, 255, 0.60);
 }
 
 .sc-sub strong {
   font-weight: 500;
-  color: #D6CFD9;
+  color: #FFFFFF;
 }
 
 .sc-sep {
   margin: 0 1.2cqw;
-  color: #766E80;
+  color: rgba(255, 255, 255, 0.40);
 }
 
 /* 3. Centerpiece: Circular 2D Sound Fingerprint + Mix Legend */
 .sc-centerpiece {
   display: grid;
-  grid-template-columns: 26cqw 1fr;
+  grid-template-columns: 29cqw 1fr;
   gap: 3.5cqw;
   align-items: center;
 }
@@ -2125,14 +2125,14 @@ a { color: inherit; }
 .sc-leg li.is-other .sc-leg-name {
   font-size: 2.7cqw;
   font-weight: 400;
-  color: #766E80;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .sc-leg-pct {
   font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   font-size: 2.6cqw;
   font-weight: 400;
-  color: #A098AA;
+  color: rgba(255, 255, 255, 0.60);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
@@ -2143,7 +2143,7 @@ a { color: inherit; }
 }
 
 .sc-leg li.is-other .sc-leg-pct {
-  color: #766E80;
+  color: rgba(255, 255, 255, 0.50);
 }
 
 .sc-split-bar {
@@ -2160,63 +2160,44 @@ a { color: inherit; }
   border-radius: 999px;
 }
 
-/* 4. Key Tracks: Restructured 2-Line Stacked Layout with Album Art */
+/* 4. Key Tracks: Flipped Spanning Layout with Scaled Up 46x46 Album Art */
 .sc-tracks {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2.8cqw;
-  min-height: 20cqw;
+  gap: 3.2cqw;
+  min-height: 24cqw;
 }
 
 .sc-track-row {
   display: flex;
   align-items: center;
-  gap: 2.8cqw;
+  justify-content: space-between;
+  gap: 4cqw; /* 16px buffer before right badge */
   min-width: 0;
-}
-
-.sc-track-left {
-  width: 24cqw;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2.2cqw;
-}
-
-.sc-track-glyph {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  width: 2.6cqw;
-  height: 2.6cqw;
-}
-
-.sc-track-glyph svg {
   width: 100%;
-  height: 100%;
-  display: block;
 }
 
-.sc-track-tag {
-  font-size: 2.7cqw;
-  color: #766E80;
-  letter-spacing: 0.005em;
-  font-weight: 500;
+.sc-track-main {
+  display: flex;
+  align-items: center;
+  gap: 3.5cqw; /* ~14px gap after album cover */
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .sc-track-thumb {
-  width: 9cqw;
-  height: 9cqw;
-  min-width: 36px;
-  min-height: 36px;
-  max-width: 36px;
-  max-height: 36px;
+  width: 11.5cqw;
+  height: 11.5cqw;
+  min-width: 46px;
+  min-height: 46px;
+  max-width: 46px;
+  max-height: 46px;
   border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   position: relative;
   display: flex;
   align-items: center;
@@ -2236,7 +2217,7 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.8cqw;
+  font-size: 3.5cqw;
   font-weight: 700;
 }
 
@@ -2246,55 +2227,87 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.5cqw;
+  gap: 0.6cqw;
 }
 
 .sc-track-title {
-  font-size: 3.4cqw;
-  font-weight: 600;
-  color: #F7F5FA;
+  font-size: 4cqw; /* ~16-17px */
+  font-weight: 700;
+  color: #FFFFFF;
   letter-spacing: -0.015em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.22;
+  line-height: 1.2;
 }
 
 .sc-track-artist {
-  font-size: 2.8cqw;
+  font-size: 3.25cqw; /* ~13px */
   font-weight: 400;
-  color: #A098AA;
+  color: rgba(255, 255, 255, 0.68);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.22;
+  line-height: 1.2;
+}
+
+.sc-track-badge {
+  display: flex;
+  align-items: center;
+  gap: 1.8cqw; /* ~7px */
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.sc-track-glyph {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  width: 3cqw;
+  height: 3cqw;
+}
+
+.sc-track-glyph svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.sc-track-tag {
+  font-size: 3cqw; /* ~12px */
+  color: rgba(255, 255, 255, 0.70);
+  letter-spacing: 0.01em;
+  font-weight: 500;
 }
 
 /* 5. Audio Profile */
 .sc-prof {
   display: flex;
   flex-direction: column;
+  margin-bottom: 24px; /* 22-26px clean breathing room before footer hairline */
 }
 
 .sc-prof-head {
   display: grid;
-  grid-template-columns: 20cqw 1fr 8.5cqw 7cqw;
+  grid-template-columns: 20cqw 1fr 8.5cqw 9.5cqw;
   column-gap: 2cqw;
   align-items: baseline;
-  margin-bottom: 1.2cqw;
+  margin-bottom: 1.4cqw;
 }
 
 .sc-prof-title {
-  font-size: 2.5cqw;
+  font-size: 2.6cqw;
   font-weight: 500;
-  color: #766E80;
+  color: rgba(255, 255, 255, 0.62);
+  letter-spacing: 0.005em;
 }
 
 .sc-prof-th {
   font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  font-size: 2.1cqw;
-  color: #5F5868;
+  font-size: 2.2cqw;
+  color: rgba(255, 255, 255, 0.58);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .sc-prof-c { text-align: center; }
@@ -2306,25 +2319,25 @@ a { color: inherit; }
 
 .sc-midline-guide {
   position: absolute;
-  left: calc(20cqw + 2cqw + (100% - 20cqw - 2cqw - 8.5cqw - 7cqw - 4cqw) / 2);
+  left: calc(20cqw + 2cqw + (100% - 20cqw - 2cqw - 8.5cqw - 9.5cqw - 4cqw) / 2);
   top: 0;
   bottom: 0;
   width: 0;
-  border-left: 1px dotted rgba(255, 255, 255, 0.21);
+  border-left: 1px dotted rgba(255, 255, 255, 0.24);
   pointer-events: none;
 }
 
 .sc-tbl {
   display: grid;
-  grid-template-columns: 20cqw 1fr 8.5cqw 7cqw;
+  grid-template-columns: 20cqw 1fr 8.5cqw 9.5cqw;
   column-gap: 2cqw;
-  row-gap: 1.1cqw;
+  row-gap: 1.4cqw;
   align-items: center;
 }
 
 .sc-prof-row-name {
-  font-size: 2.7cqw;
-  color: #E3DEE9;
+  font-size: 2.8cqw;
+  color: #F7F5FA;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2332,34 +2345,35 @@ a { color: inherit; }
 
 .sc-prof-bar-box {
   position: relative;
-  height: 2.4cqw;
+  height: 2.6cqw;
   display: flex;
   align-items: center;
 }
 
 .sc-prof-bar-track {
   width: 100%;
-  height: 0.44cqw;
-  background: rgba(255, 255, 255, 0.09);
+  height: 0.75cqw; /* ~3px */
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
 }
 
 .sc-prof-bar-fill {
   position: absolute;
-  height: 0.44cqw;
+  height: 0.75cqw; /* ~3px */
+  border-radius: 999px;
 }
 
 .sc-prof-bar-tip {
   position: absolute;
-  height: 1.3cqw;
-  width: 0.35cqw;
+  height: 1.8cqw; /* ~7-8px */
+  width: 0.5cqw;  /* ~2px */
   transform: translateX(-50%);
-  border-radius: 0.15cqw;
+  border-radius: 0.2cqw;
 }
 
 .sc-prof-row-pctl {
   font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  font-size: 2.4cqw;
+  font-size: 2.5cqw;
   font-weight: 500;
   color: #F7F5FA;
   text-align: right;
@@ -2368,7 +2382,7 @@ a { color: inherit; }
 
 .sc-prof-row-delta {
   font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  font-size: 2.4cqw;
+  font-size: 2.5cqw;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -2377,18 +2391,18 @@ a { color: inherit; }
 .sc-foot {
   margin-top: auto;
   padding-top: 3.6cqw;
-  border-top: 1px solid rgba(255, 255, 255, 0.075);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  font-size: 2.3cqw;
-  color: #766E80;
+  font-size: 2.4cqw;
+  color: rgba(255, 255, 255, 0.60);
   white-space: nowrap;
 }
 
 .sc-foot span:last-child {
-  color: #B4ACC0;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 /* Modal Action Buttons */
