@@ -1624,9 +1624,9 @@ function computeConvexHull(pts) {
  * Clamped strictly to safeR = 34px (63% of outer R=54) so dots and rings never collide with axis text.
  */
 function computeRefinedRadarMap(userSongs, anchorTrack, outlierTrack) {
-  const size = 116;
-  const mid = 58;
-  const safeR = 34; // 63% of outer radius (54px), guaranteeing >=12px clearance to axis labels
+  const size = 120;
+  const mid = 60;
+  const safeR = 33; // safe plotting disk radius (77% of outer radius 43px), zero overlap with outside axis labels
 
   // 1. Group songs by persona and compute category centroids
   const catMap = new Map();
@@ -1870,8 +1870,8 @@ function updateShareCardData() {
       const py = mapData.anchorNode.py.toFixed(1);
       const c = colorOf(mapData.anchorNode.persona);
       anchorDotSVG = `
-        <circle cx="${px}" cy="${py}" r="9.5" fill="none" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.1" />
-        <circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />
+        <circle cx="${px}" cy="${py}" r="8.5" fill="none" stroke="rgba(255, 255, 255, 0.45)" stroke-width="1.1" />
+        <circle cx="${px}" cy="${py}" r="4" fill="${c}" stroke="#141117" stroke-width="1.8" />
       `;
     }
 
@@ -1882,23 +1882,23 @@ function updateShareCardData() {
       const py = mapData.outlierNode.py.toFixed(1);
       const c = colorOf(mapData.outlierNode.persona);
       outlierDotSVG = `
-        <circle cx="${px}" cy="${py}" r="10" fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="2.5 2" />
-        <circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />
+        <circle cx="${px}" cy="${py}" r="9" fill="none" stroke="${c}" stroke-width="1.15" stroke-dasharray="2.5 2" />
+        <circle cx="${px}" cy="${py}" r="4" fill="${c}" stroke="#141117" stroke-width="1.8" />
       `;
     }
 
     radarSvg.innerHTML = `
-      <circle cx="58" cy="58" r="54" fill="rgba(255, 255, 255, 0.016)" stroke="rgba(255, 255, 255, 0.13)" stroke-width="1" />
-      <circle cx="58" cy="58" r="36" fill="none" stroke="rgba(255, 255, 255, 0.065)" stroke-width="1" stroke-dasharray="2 3" />
-      <circle cx="58" cy="58" r="18" fill="none" stroke="rgba(255, 255, 255, 0.065)" stroke-width="1" stroke-dasharray="2 3" />
-      <line x1="4" y1="58" x2="112" y2="58" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
-      <line x1="58" y1="4" x2="58" y2="112" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
+      <circle cx="60" cy="60" r="43" fill="rgba(255, 255, 255, 0.016)" stroke="rgba(255, 255, 255, 0.12)" stroke-width="1" />
+      <circle cx="60" cy="60" r="28.6" fill="none" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="2 3" />
+      <circle cx="60" cy="60" r="14.3" fill="none" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1" stroke-dasharray="2 3" />
+      <line x1="17" y1="60" x2="103" y2="60" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
+      <line x1="60" y1="17" x2="60" y2="103" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
 
-      <!-- Low-contrast axis labels tucked cleanly near the outer circle with >=12px clearance to safe plotting disk -->
-      <text x="58" y="12" text-anchor="middle" font-size="7.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">UPBEAT</text>
-      <text x="58" y="107" text-anchor="middle" font-size="7.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">MOODY</text>
-      <text x="7" y="60.5" text-anchor="start" font-size="6.6" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.34">ACOUSTIC</text>
-      <text x="109" y="60.5" text-anchor="end" font-size="6.6" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.34">INTENSE</text>
+      <!-- Outside axis labels with left and right rotated 90 degrees -->
+      <text x="60" y="8.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">UPBEAT</text>
+      <text x="60" y="112.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">MOODY</text>
+      <text x="7.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(-90 7.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">ACOUSTIC</text>
+      <text x="112.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(90 112.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">INTENSE</text>
 
       <polygon points="${hullPts}" fill="${hexToRgba(dominantColor, 0.14)}" stroke="${hexToRgba(dominantColor, 0.48)}" stroke-width="1.25" stroke-linejoin="round" />
       ${chords}
