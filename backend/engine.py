@@ -74,7 +74,53 @@ def taste_profile(track_ids, data):
     suggested_songs = top_3_recs[cols].to_dict(orient='records')
 
     # 2D Sound Map Coordinates for the user's selected songs
-    user_songs = selected[['track_id', 'track_name', 'artists', 'pca_x', 'pca_y', 'persona']].to_dict(orient='records')
+    user_songs_cols = ['track_id', 'track_name', 'artists', 'pca_x', 'pca_y', 'persona']
+    if 'album_name' in selected.columns:
+        user_songs_cols.append('album_name')
+    user_songs = selected[user_songs_cols].to_dict(orient='records')
+
+    # Anchor & Outlier Track Identification
+    # - Anchor: The track with the smallest combined Euclidean distance to all your other selected songs
+    # - Outlier: The track with the largest combined Euclidean distance from all your other selected songs
+    coords = selected[['pca_x', 'pca_y']].to_numpy()
+    n_tracks = len(coords)
+    anchor_track = None
+    outlier_track = None
+
+    if n_tracks > 0:
+        if n_tracks == 1:
+            row0 = selected.iloc[0]
+            anchor_track = {
+                'track_id': str(row0['track_id']),
+                'track_name': str(row0['track_name']),
+                'artists': str(row0['artists']),
+                'album_name': str(row0.get('album_name', '')),
+                'persona': str(row0['persona']),
+                'pca_x': float(row0['pca_x']),
+                'pca_y': float(row0['pca_y']),
+            }
+            outlier_track = anchor_track
+        else:
+            diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+            dist_matrix = np.sqrt(np.sum(diff**2, axis=-1))
+            combined_dists = dist_matrix.sum(axis=1)
+
+            min_idx = int(np.argmin(combined_dists))
+            max_idx = int(np.argmax(combined_dists))
+
+            def _track_dict(row):
+                return {
+                    'track_id': str(row['track_id']),
+                    'track_name': str(row['track_name']),
+                    'artists': str(row['artists']),
+                    'album_name': str(row.get('album_name', '')),
+                    'persona': str(row['persona']),
+                    'pca_x': float(row['pca_x']),
+                    'pca_y': float(row['pca_y']),
+                }
+
+            anchor_track = _track_dict(selected.iloc[min_idx])
+            outlier_track = _track_dict(selected.iloc[max_idx])
 
     # return a dict of all dicts/stats
     return {
@@ -82,5 +128,7 @@ def taste_profile(track_ids, data):
         "diversity_score": round(float(diversity_score), 2),
         "percentiles": percentiles,
         "recommendations": suggested_songs,
-        "user_songs": user_songs
+        "user_songs": user_songs,
+        "anchor": anchor_track,
+        "outlier": outlier_track,
     }

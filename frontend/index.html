@@ -41,8 +41,8 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=9">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=11">
 </head>
 <body>
   <a class="skip" href="#main">Skip to results</a>
@@ -216,48 +216,82 @@
         </button>
       </header>
 
+      <div class="sc-name-bar">
+        <label for="sc-user-name" class="sc-name-label">Name:</label>
+        <div class="sc-name-input-wrap">
+          <input id="sc-user-name" type="text" maxlength="20" placeholder="e.g. Ryan" autocomplete="name" class="sc-name-input" title="Type your name to personalize your card" />
+          <button id="sc-name-clear" type="button" class="sc-name-clear-btn" aria-label="Clear name" hidden>&times;</button>
+        </div>
+      </div>
+
       <div class="sc-frame-container">
         <div class="sc-frame">
           <article class="sc-card" id="share-card" aria-label="Sonality result card">
+            <!-- 1. Header Row -->
             <div class="sc-top">
               <div class="sc-lock">
-                <svg viewBox="96 20 320 456" aria-hidden="true">
-                  <circle cx="247.8" cy="68.2" r="47.2" fill="#F6C343"/>
-                  <circle cx="336.6" cy="119.4" r="47.1" fill="#EA6C5A"/>
-                  <circle cx="168.9" cy="134.3" r="47.2" fill="#F8A9C9"/>
-                  <circle cx="255.5" cy="246.9" r="60" fill="#7DF29C"/>
-                  <circle cx="342.2" cy="313.5" r="47.2" fill="#8398FE"/>
-                  <circle cx="174.4" cy="374.5" r="47.1" fill="#42B194"/>
-                  <circle cx="263.2" cy="425.7" r="47.2" fill="#DC6ED0"/>
+                <svg width="15" height="20" viewBox="0 0 18 24" fill="none" aria-hidden="true" class="sc-logo-svg">
+                  <circle cx="12.4" cy="3.1" r="2.05" fill="#F08A4B"/>
+                  <circle cx="6.2" cy="5.0" r="2.05" fill="#E373E8"/>
+                  <circle cx="4.5" cy="9.9" r="2.05" fill="#4DC4B0"/>
+                  <circle cx="9.1" cy="12.0" r="2.05" fill="#5EA8F0"/>
+                  <circle cx="13.5" cy="14.3" r="2.05" fill="#5FD088"/>
+                  <circle cx="5.8" cy="18.8" r="2.05" fill="#9A7CF0"/>
+                  <circle cx="11.4" cy="20.9" r="2.05" fill="#D96BD8"/>
                 </svg>
                 <span>Sonality</span>
               </div>
               <span class="sc-lab" id="sc-tag"></span>
             </div>
 
-            <div class="sc-sec sc-hero">
-              <div class="sc-eyebrow">My sound is mostly</div>
+            <!-- 2. Hero Identity Block -->
+            <div class="sc-hero">
+              <p class="sc-eyebrow" id="sc-eyebrow">My sound is mostly</p>
               <h2 id="sc-head"></h2>
               <p class="sc-sub" id="sc-sub"></p>
             </div>
 
-            <section class="sc-sec sc-mix" aria-label="Sound mix">
-              <div class="sc-lab">Sound mix</div>
-              <div class="sc-mixg">
-                <div class="sc-ring">
-                  <svg viewBox="0 0 100 100" id="sc-ring" aria-hidden="true"></svg>
-                  <div class="sc-n" id="sc-big"></div>
-                </div>
+            <!-- Hairline Divider -->
+            <div class="sc-hairline"></div>
+
+            <!-- 3. Centerpiece: Circular 2D Sound Fingerprint + Mix Legend + Split Bar -->
+            <section class="sc-centerpiece" aria-label="Acoustic Hull and Sound Mix">
+              <div class="sc-radar-wrap">
+                <svg id="sc-radar-svg" viewBox="0 0 116 116" class="sc-radar-svg" aria-label="2D Sound Fingerprint Map"></svg>
+              </div>
+              <div class="sc-mix-wrap">
                 <ul class="sc-leg" id="sc-leg"></ul>
+                <div class="sc-split-bar" id="sc-split-bar" aria-hidden="true"></div>
               </div>
             </section>
 
-            <section class="sc-sec sc-prof" aria-label="Audio profile">
-              <div class="sc-lab">Audio profile &middot; vs. dataset avg</div>
-              <div class="sc-tbl" id="sc-tbl"></div>
+            <!-- Hairline Divider -->
+            <div class="sc-hairline"></div>
+
+            <!-- 4. Key Tracks: Anchor & Outlier with Album Art -->
+            <section class="sc-tracks" id="sc-tracks" aria-label="Key Tracks">
+              <!-- Dynamically populated Anchor and Outlier rows -->
             </section>
 
-            <div class="sc-sec sc-foot">
+            <!-- Hairline Divider -->
+            <div class="sc-hairline"></div>
+
+            <!-- 5. Audio Profile -->
+            <section class="sc-prof" aria-label="Audio profile">
+              <div class="sc-prof-head">
+                <span class="sc-prof-title">Audio profile</span>
+                <span class="sc-prof-th sc-prof-c">50th</span>
+                <span class="sc-prof-th sc-prof-pc">pctl</span>
+                <span class="sc-prof-th sc-prof-dc">&Delta;</span>
+              </div>
+              <div class="sc-tbl-wrap">
+                <div class="sc-midline-guide" aria-hidden="true"></div>
+                <div class="sc-tbl" id="sc-tbl"></div>
+              </div>
+            </section>
+
+            <!-- 6. Clean Footer -->
+            <div class="sc-foot">
               <span id="sc-meta"></span>
               <span id="sc-url">app.sonality.workers.dev</span>
             </div>
@@ -293,6 +327,6 @@
   </dialog>
 
   <script src="/static/html-to-image.js"></script>
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=11"></script>
 </body>
 </html>

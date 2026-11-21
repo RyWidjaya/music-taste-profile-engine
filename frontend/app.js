@@ -1576,11 +1576,94 @@ const isIOS = () => {
   );
 };
 
+function formatLeadIn(rawName) {
+  const clean = (rawName || "").trim();
+  if (!clean) return "My sound is mostly";
+  const poss = clean.toLowerCase().endsWith("s") ? `${clean}’` : `${clean}’s`;
+  return `${poss} sound is mostly`;
+}
+
+function hexToRgba(hex, alpha) {
+  const clean = (hex || "#7DF29C").replace("#", "");
+  const n = parseInt(clean, 16);
+  if (isNaN(n)) return `rgba(125, 242, 156, ${alpha})`;
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function computeConvexHull(pts) {
+  if (pts.length <= 2) return pts.map((p) => ({ x: p.px, y: p.py }));
+  const sorted = pts
+    .map((p) => ({ x: p.px, y: p.py }))
+    .sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+      lower.pop();
+    }
+    lower.push(p);
+  }
+  const upper = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+      upper.pop();
+    }
+    upper.push(p);
+  }
+  upper.pop();
+  lower.pop();
+  return lower.concat(upper);
+}
+
+function computeRadarMap(songs, anchorId, outlierId) {
+  const size = 116;
+  const mid = 58;
+  const maxR = 40;
+
+  const maxMag = Math.max(1.5, ...songs.map((s) => Math.hypot(s.pca_x || 0, s.pca_y || 0)));
+
+  const nodes = songs.map((s, idx) => {
+    const rawX = (s.pca_x || 0) / maxMag;
+    const rawY = (s.pca_y || 0) / maxMag;
+    const mag = Math.hypot(rawX, rawY);
+    const scale = mag > 0.85 ? 0.85 / mag : 1;
+    const nx = rawX * scale;
+    const ny = rawY * scale;
+    const isAnchor = anchorId ? s.track_id === anchorId : idx === 0;
+    const isOutlier = outlierId ? s.track_id === outlierId : idx === songs.length - 1;
+    const role = isAnchor ? "anchor" : isOutlier ? "outlier" : "member";
+    return {
+      ...s,
+      idx,
+      role,
+      px: mid + nx * maxR,
+      py: mid - ny * maxR,
+    };
+  });
+
+  const hull = computeConvexHull(nodes);
+  const anchorNode = nodes.find((n) => n.role === "anchor") || nodes[0];
+  const outlierNode = nodes.find((n) => n.role === "outlier") || nodes[nodes.length - 1];
+
+  return { size, mid, nodes, hull, anchorNode, outlierNode };
+}
+
 function openShareModal() {
   if (!state.profile || !state.profile.persona_breakdown) {
     alert("Please analyze your taste first to generate your Sonality card.");
     return;
   }
+  const nameInput = document.getElementById("sc-user-name");
+  const clearNameBtn = document.getElementById("sc-name-clear");
+  let savedName = "";
+  try { savedName = localStorage.getItem("sonality_user_name") || ""; } catch (_) {}
+  if (nameInput) nameInput.value = savedName;
+  if (clearNameBtn) clearNameBtn.hidden = !savedName;
+
   updateShareCardData();
   const modal = document.getElementById("share-modal");
   if (!modal) return;
@@ -1615,20 +1698,7 @@ function closeShareModal() {
 }
 
 function fitCard(c) {
-  if (!c) c = document.getElementById("share-card");
-  if (!c) return;
-  const cs = getComputedStyle(c);
-  const avail = c.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  const over = () => [...c.children].reduce((a, e) => a + e.offsetHeight, 0) > avail + 0.5;
-  c.style.setProperty("--ring", "21cqw");
-  for (const p of [4, 3.6, 3.2, 2.8, 2.4, 2, 1.6]) {
-    c.style.setProperty("--pad", p + "cqw");
-    if (!over()) return;
-  }
-  for (const r of [19, 17, 15]) {
-    c.style.setProperty("--ring", r + "cqw");
-    if (!over()) return;
-  }
+  // Editorial Craft card scales organically with 4:5 aspect ratio and container query units (cqw)
 }
 
 function updateShareCardData() {
@@ -1644,6 +1714,17 @@ function updateShareCardData() {
   const dominantColor = colorOf(top.persona);
   card.style.setProperty("--c", dominantColor);
 
+  // Personalized listener name lead-in
+  let userName = "";
+  try {
+    const inputEl = document.getElementById("sc-user-name");
+    userName = inputEl && inputEl.value !== undefined ? inputEl.value : (localStorage.getItem("sonality_user_name") || "");
+  } catch (_) {}
+  const eyebrowEl = document.getElementById("sc-eyebrow");
+  if (eyebrowEl) {
+    eyebrowEl.textContent = formatLeadIn(userName);
+  }
+
   const tagEl = document.getElementById("sc-tag");
   if (tagEl) {
     tagEl.textContent = new Date().toLocaleDateString("en-AU", { month: "short", year: "numeric" });
@@ -1651,54 +1732,165 @@ function updateShareCardData() {
 
   const headEl = document.getElementById("sc-head");
   if (headEl) {
-    headEl.innerHTML = `<em>${esc(nameOf(top.persona))}.</em>`;
+    headEl.textContent = `${nameOf(top.persona)}.`;
   }
+
   const subEl = document.getElementById("sc-sub");
   if (subEl) {
     subEl.innerHTML = entries.length === 1
       ? `Pure ${esc(nameOf(top.persona))}<span class="sc-sep">&middot;</span>1 of 7 sounds`
-      : `With a streak of ${esc(nameOf(entries[1].persona))}<span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
+      : `With a streak of <strong>${esc(nameOf(entries[1].persona))}</strong><span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
   }
 
-  const metaEl = document.getElementById("sc-meta");
-  if (metaEl) {
-    metaEl.innerHTML = `${matched} songs<span class="sc-sep">&middot;</span>vs. ${fmtInt(state.datasetSize || 127900)} tracks`;
+  // Anchor and Outlier track calculation
+  const userSongs = p.user_songs || [];
+  let anchor = p.anchor;
+  let outlier = p.outlier;
+  if ((!anchor || !outlier) && userSongs.length > 0) {
+    if (userSongs.length === 1) {
+      anchor = userSongs[0];
+      outlier = userSongs[0];
+    } else {
+      const dists = userSongs.map((s1, i) => {
+        let sum = 0;
+        userSongs.forEach((s2, j) => {
+          if (i !== j) sum += Math.hypot((s1.pca_x || 0) - (s2.pca_x || 0), (s1.pca_y || 0) - (s2.pca_y || 0));
+        });
+        return { track: s1, sum };
+      });
+      dists.sort((a, b) => a.sum - b.sum);
+      anchor = dists[0].track;
+      outlier = dists[dists.length - 1].track;
+    }
   }
 
-  const urlEl = document.getElementById("sc-url");
-  if (urlEl) {
-    const host = window.location.hostname;
-    urlEl.textContent = (host && host !== "localhost" && host !== "127.0.0.1")
-      ? host
-      : "app.sonality.workers.dev";
-  }
+  // 3. Centerpiece: Circular Radar SVG
+  const radarSvg = document.getElementById("sc-radar-svg");
+  if (radarSvg && userSongs.length > 0) {
+    const mapData = computeRadarMap(userSongs, anchor && anchor.track_id, outlier && outlier.track_id);
+    const anchorNode = mapData.anchorNode;
+    const hullPts = mapData.hull.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(" ");
 
-  const bigEl = document.getElementById("sc-big");
-  if (bigEl) bigEl.textContent = `${top.pct}%`;
+    const chords = mapData.nodes
+      .filter((n) => n.role !== "anchor")
+      .map((n) => `<line x1="${anchorNode.px.toFixed(1)}" y1="${anchorNode.py.toFixed(1)}" x2="${n.px.toFixed(1)}" y2="${n.py.toFixed(1)}" stroke="${hexToRgba(dominantColor, 0.32)}" stroke-width="1" />`)
+      .join("");
 
-  let Lg = entries.map((e) => [nameOf(e.persona), e.pct, colorOf(e.persona)]);
-  if (Lg.length > 5) {
-    const o = Lg.slice(4).reduce((acc, x) => acc + x[1], 0);
-    Lg = [...Lg.slice(0, 4), [`+${Lg.length - 4} other sounds`, o, "#9A8F9E"]];
-  }
-  card.style.setProperty("--lp", Lg.length <= 3 ? "1.1cqw" : Lg.length === 4 ? ".85cqw" : ".5cqw");
+    const sortedNodes = [...mapData.nodes].sort((a, b) => {
+      const ord = { member: 0, outlier: 1, anchor: 2 };
+      return (ord[a.role] || 0) - (ord[b.role] || 0);
+    });
 
-  const R = 38, SW = 11, L = 2 * Math.PI * R, gap = 3.2;
-  let off = 0;
-  const ringEl = document.getElementById("sc-ring");
-  if (ringEl) {
-    ringEl.innerHTML = Lg.map(([, v, c]) => {
-      const len = Math.max(L * v / 100 - gap - SW, 0.01);
-      const s = `<circle cx="50" cy="50" r="${R}" fill="none" stroke="${c}" stroke-width="${SW}" stroke-linecap="round" stroke-dasharray="${len.toFixed(2)} ${L.toFixed(2)}" stroke-dashoffset="${(-(off + (gap + SW) / 2)).toFixed(2)}"/>`;
-      off += L * v / 100;
-      return s;
+    const dotsSVG = sortedNodes.map((n) => {
+      const c = colorOf(n.persona);
+      const px = n.px.toFixed(1);
+      const py = n.py.toFixed(1);
+      let ring = "";
+      if (n.role === "anchor") {
+        ring = `<circle cx="${px}" cy="${py}" r="9.5" fill="none" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.1" />`;
+      } else if (n.role === "outlier") {
+        ring = `<circle cx="${px}" cy="${py}" r="10" fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="2.5 2" />`;
+      }
+      return `${ring}<circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />`;
     }).join("");
+
+    radarSvg.innerHTML = `
+      <circle cx="58" cy="58" r="54" fill="rgba(255, 255, 255, 0.016)" stroke="rgba(255, 255, 255, 0.13)" stroke-width="1" />
+      <circle cx="58" cy="58" r="36" fill="none" stroke="rgba(255, 255, 255, 0.065)" stroke-width="1" stroke-dasharray="2 3" />
+      <circle cx="58" cy="58" r="18" fill="none" stroke="rgba(255, 255, 255, 0.065)" stroke-width="1" stroke-dasharray="2 3" />
+      <line x1="4" y1="58" x2="112" y2="58" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
+      <line x1="58" y1="4" x2="58" y2="112" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
+      <text x="58" y="14" text-anchor="middle" font-size="7.5" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.65">UPBEAT</text>
+      <text x="58" y="106" text-anchor="middle" font-size="7.5" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.65">MOODY</text>
+      <text x="8" y="60.5" text-anchor="start" font-size="6.8" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.65">ACOUSTIC</text>
+      <text x="108" y="60.5" text-anchor="end" font-size="6.8" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.65">INTENSE</text>
+      <polygon points="${hullPts}" fill="${hexToRgba(dominantColor, 0.14)}" stroke="${hexToRgba(dominantColor, 0.48)}" stroke-width="1.25" stroke-linejoin="round" />
+      ${chords}
+      ${dotsSVG}
+    `;
   }
+
+  // Sound Mix Legend & Proportional Continuous Split Bar
+  const mixEntries = entries.slice(0, Math.min(entries.length, 3));
   const legEl = document.getElementById("sc-leg");
   if (legEl) {
-    legEl.innerHTML = Lg.map(([n, v, c]) => `<li style="--c:${c}"><i></i><span>${esc(n)}</span><b>${v}%</b></li>`).join("");
+    legEl.innerHTML = mixEntries.map((e, idx) => `
+      <li class="${idx === 0 ? 'is-primary' : ''}">
+        <div class="sc-leg-left">
+          <span class="sc-leg-dot" style="background-color: ${colorOf(e.persona)}"></span>
+          <span class="sc-leg-name">${esc(nameOf(e.persona))}</span>
+        </div>
+        <span class="sc-leg-pct">${e.pct}%</span>
+      </li>
+    `).join("");
+  }
+  const splitBarEl = document.getElementById("sc-split-bar");
+  if (splitBarEl) {
+    splitBarEl.innerHTML = mixEntries.map((e) => `
+      <div style="flex: ${e.pct} 0 0%; background-color: ${colorOf(e.persona)};"></div>
+    `).join("");
   }
 
+  // 4. Key Tracks: Anchor & Outlier with Album Art
+  const tracksEl = document.getElementById("sc-tracks");
+  if (tracksEl && anchor && outlier) {
+    const anchorColor = colorOf(anchor.persona);
+    const outlierColor = colorOf(outlier.persona);
+
+    const anchorGlyph = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.1" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.05" />
+      <circle cx="6" cy="6" r="2.6" fill="${anchorColor}" />
+    </svg>`;
+
+    const outlierGlyph = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.1" stroke="${outlierColor}" stroke-width="1.1" stroke-dasharray="2.1 1.7" />
+      <circle cx="6" cy="6" r="2.6" fill="${outlierColor}" />
+    </svg>`;
+
+    const renderThumb = (trackId, color) => {
+      const known = artUrls.get(trackId);
+      const imgTag = known ? `<img src="${esc(known)}" alt="" />` : "";
+      const fallback = `<span class="sc-track-fallback" style="background:${hexToRgba(color, 0.22)}; color:${color}; ${known ? 'display:none;' : ''}">♪</span>`;
+      return `<div class="sc-track-thumb" data-art="${esc(trackId)}">${imgTag}${fallback}</div>`;
+    };
+
+    tracksEl.innerHTML = `
+      <div class="sc-track-row">
+        <span class="sc-track-glyph">${anchorGlyph}</span>
+        <span class="sc-track-tag">Anchor</span>
+        ${renderThumb(anchor.track_id, anchorColor)}
+        <span class="sc-track-title" title="${esc(anchor.track_name)}">${esc(anchor.track_name)}</span>
+        <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
+      </div>
+      <div class="sc-track-row">
+        <span class="sc-track-glyph">${outlierGlyph}</span>
+        <span class="sc-track-tag">Outlier</span>
+        ${renderThumb(outlier.track_id, outlierColor)}
+        <span class="sc-track-title" title="${esc(outlier.track_name)}">${esc(outlier.track_name)}</span>
+        <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
+      </div>
+    `;
+
+    // Hydrate album art for Anchor and Outlier
+    [anchor.track_id, outlier.track_id].forEach((id) => {
+      if (!id) return;
+      getArt(id).then((url) => {
+        if (!url) return;
+        const thumb = tracksEl.querySelector(`[data-art="${id}"]`);
+        if (thumb && !thumb.querySelector("img")) {
+          const img = new Image();
+          img.alt = "";
+          img.onload = () => {
+            thumb.innerHTML = "";
+            thumb.appendChild(img);
+          };
+          img.src = url;
+        }
+      });
+    });
+  }
+
+  // 5. Audio Profile Diverging Rows
   const tblEl = document.getElementById("sc-tbl");
   if (tblEl && p.percentiles) {
     const rawMetrics = [
@@ -1708,19 +1900,42 @@ function updateShareCardData() {
       ["Acousticness", p.percentiles.acousticness],
     ];
     const ord = (n) => n + (["th", "st", "nd", "rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : Math.min(n % 10, 4) % 4] || "th");
-    const sg = (d) => d === 0 ? "0" : (d < 0 ? "&minus;" : "+") + Math.abs(d);
+    const sg = (d) => d === 0 ? "0" : (d < 0 ? "−" : "+") + Math.abs(d);
 
-    tblEl.innerHTML = `<span class="sc-th sc-c">50th</span><span class="sc-th sc-pc">Pctl</span><span class="sc-th sc-dc">&Delta;</span><div class="sc-ref"></div>` +
-      rawMetrics.map(([n, rawVal], r) => {
-        const v = Math.round(rawVal !== undefined ? rawVal : 50);
-        const dl = v - 50;
-        const k = dl <= 0 ? "#9A8F9E" : dominantColor;
-        const g = `grid-row:${r + 2}`;
-        return `<span class="sc-nm" style="${g}">${esc(n)}</span>` +
-          `<div class="sc-trk" style="${g};--k:${k}"><u style="left:${Math.min(v, 50)}%;width:${Math.abs(v - 50)}%"></u><s style="left:${v}%"></s></div>` +
-          `<span class="sc-p" style="${g}">${ord(v)}</span>` +
-          `<span class="sc-d" style="${g};--k:${k}">${sg(dl)}</span>`;
-      }).join("");
+    tblEl.innerHTML = rawMetrics.map(([label, rawVal]) => {
+      const val = Math.round(rawVal !== undefined ? rawVal : 50);
+      const delta = val - 50;
+      const isPos = delta >= 0;
+      const widthPct = Math.min(50, Math.abs(delta));
+      const leftPct = isPos ? 50 : 50 - widthPct;
+      const barCol = isPos ? dominantColor : "#766E80";
+      const tipLeft = isPos ? 50 + widthPct : 50 - widthPct;
+
+      return `
+        <span class="sc-prof-row-name">${esc(label)}</span>
+        <div class="sc-prof-bar-box">
+          <div class="sc-prof-bar-track"></div>
+          <div class="sc-prof-bar-fill" style="left: ${leftPct}%; width: ${widthPct}%; background-color: ${barCol};"></div>
+          <div class="sc-prof-bar-tip" style="left: ${tipLeft}%; background-color: ${barCol};"></div>
+        </div>
+        <span class="sc-prof-row-pctl">${ord(val)}</span>
+        <span class="sc-prof-row-delta" style="color: ${isPos ? dominantColor : '#766E80'};">${sg(delta)}</span>
+      `;
+    }).join("");
+  }
+
+  // 6. Clean Footer
+  const metaEl = document.getElementById("sc-meta");
+  if (metaEl) {
+    metaEl.textContent = `${matched} songs · vs. ${fmtInt(state.datasetSize || 127900)} tracks`;
+  }
+
+  const urlEl = document.getElementById("sc-url");
+  if (urlEl) {
+    const host = window.location.hostname;
+    urlEl.textContent = (host && host !== "localhost" && host !== "127.0.0.1")
+      ? host
+      : "app.sonality.workers.dev";
   }
 
   fitCard(card);
@@ -1736,7 +1951,7 @@ async function exportShareCardBlob() {
 
   const stage = document.createElement("div");
   stage.className = "sc-frame";
-  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:1080px;border-radius:0;box-shadow:none;background:#1C161F;z-index:-1;";
+  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:1080px;height:1350px;border-radius:0;box-shadow:none;background:#141117;z-index:-1;";
   const clone = card.cloneNode(true);
   clone.removeAttribute("id");
   stage.appendChild(clone);
@@ -1769,13 +1984,13 @@ async function downloadShareCardPng() {
 
   try {
     const blob = await exportShareCardBlob();
+    let savedName = "";
+    try { savedName = (localStorage.getItem("sonality_user_name") || "").trim(); } catch (_) {}
+    const prefix = savedName ? savedName.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "my-sound";
     const dominantName = (state.profile && state.profile.persona_breakdown) ? Object.keys(state.profile.persona_breakdown)[0] : "card";
-    const fileName = `sonality-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+    const fileName = `sonality-${prefix}-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
     const file = new File([blob], fileName, { type: "image/png" });
 
-    // iOS Safari routes <a download> to the Files app rather than Camera Roll.
-    // Calling navigator.share with the image file opens the native iOS Share Sheet,
-    // which has "Save Image" right at the top to save directly into the Apple Photos app.
     if (isApple && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
@@ -1783,7 +1998,6 @@ async function downloadShareCardPng() {
       if (textEl) textEl.textContent = "Saved!";
       setTimeout(() => { if (textEl) textEl.textContent = defaultText; }, 1800);
     } else {
-      // Standard direct download for PC, Android, and other browsers
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
@@ -1794,15 +2008,16 @@ async function downloadShareCardPng() {
     }
   } catch (err) {
     if (err && err.name === "AbortError") {
-      // User cancelled iOS share sheet — normal behavior
       if (textEl) textEl.textContent = defaultText;
       return;
     }
-    // Fallback if sharing was interrupted
     try {
       const blob = await exportShareCardBlob();
+      let savedName = "";
+      try { savedName = (localStorage.getItem("sonality_user_name") || "").trim(); } catch (_) {}
+      const prefix = savedName ? savedName.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "my-sound";
       const dominantName = (state.profile && state.profile.persona_breakdown) ? Object.keys(state.profile.persona_breakdown)[0] : "card";
-      const fileName = `sonality-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+      const fileName = `sonality-${prefix}-${dominantName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
@@ -2031,6 +2246,33 @@ function wireEvents() {
 
   const dlBtn = document.getElementById("sc-dl");
   if (dlBtn) dlBtn.addEventListener("click", downloadShareCardPng);
+  const nameInput = document.getElementById("sc-user-name");
+  const clearNameBtn = document.getElementById("sc-name-clear");
+  if (nameInput) {
+    nameInput.addEventListener("input", (e) => {
+      const val = e.target.value;
+      try {
+        if (val.trim()) localStorage.setItem("sonality_user_name", val.trim());
+        else localStorage.removeItem("sonality_user_name");
+      } catch (_) {}
+      if (clearNameBtn) clearNameBtn.hidden = !val;
+      const eyebrow = document.getElementById("sc-eyebrow");
+      if (eyebrow) eyebrow.textContent = formatLeadIn(val);
+    });
+  }
+  if (clearNameBtn) {
+    clearNameBtn.addEventListener("click", () => {
+      if (nameInput) {
+        nameInput.value = "";
+        nameInput.focus();
+      }
+      try { localStorage.removeItem("sonality_user_name"); } catch (_) {}
+      clearNameBtn.hidden = true;
+      const eyebrow = document.getElementById("sc-eyebrow");
+      if (eyebrow) eyebrow.textContent = formatLeadIn("");
+    });
+  }
+
 
   const shareBtn = document.getElementById("sc-share");
   if (shareBtn) shareBtn.addEventListener("click", shareNativeOrCopy);

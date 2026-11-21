@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 # Allow us to specify nested data structures 
 # e.g. List[str] - list containing only strings
 #      Dict[str, float] - a dict whose keys are strings and values are floats
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -120,4 +120,12 @@ class TasteProfileResponse(BaseModel):
     user_songs: List[Dict[str, Any]] = Field(
         ..., 
         description="User's songs with (pca_x, pca_y) coordinates for 2D Sound Map."
+    )
+    anchor: Optional[Dict[str, Any]] = Field(
+        None,
+        description="The track with the smallest combined Euclidean distance to all other selected songs."
+    )
+    outlier: Optional[Dict[str, Any]] = Field(
+        None,
+        description="The track with the largest combined Euclidean distance from all other selected songs."
     )
