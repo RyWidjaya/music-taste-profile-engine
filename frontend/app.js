@@ -2050,7 +2050,7 @@ function updateShareCardData() {
             <span class="sc-track-glyph">${anchorGlyph}</span>
             <span class="sc-track-tag">Anchor</span>
           </div>
-          <span class="sc-track-subtag">Core center</span>
+          <span class="sc-track-subtag">Most representative</span>
         </div>
       </div>
     `;
@@ -2069,7 +2069,7 @@ function updateShareCardData() {
             <span class="sc-track-glyph">${outlierGlyph}</span>
             <span class="sc-track-tag">Outlier</span>
           </div>
-          <span class="sc-track-subtag">Furthest pull</span>
+          <span class="sc-track-subtag">Most unexpected</span>
         </div>
       </div>
     ` : '';
@@ -2153,22 +2153,24 @@ async function exportShareCardBlob() {
   const card = document.getElementById("share-card");
   if (!card) throw new Error("Share card element not found");
 
-  // 400x600 logical aspect ratio -> 800x1200 at 2x retina (full-bleed matte, no outer border)
+  // Dynamic logical aspect ratio (min-height 616px) -> 800x1232+ at 2x retina (full-bleed matte, no outer border)
   const stage = document.createElement("div");
   stage.className = "sc-frame";
-  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;height:1200px;border-radius:0;box-shadow:none;border:none;background:#141117;z-index:-1;";
+  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;min-height:1232px;height:auto;border-radius:0;box-shadow:none;border:none;background:#141117;z-index:-1;";
   const clone = card.cloneNode(true);
   clone.removeAttribute("id");
   clone.style.border = "none";
   clone.style.borderRadius = "0";
   clone.style.boxShadow = "none";
+  clone.style.height = "auto";
   stage.appendChild(clone);
   document.body.appendChild(stage);
 
   try {
     fitCard(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const options = { width: 800, height: 1200, pixelRatio: 2, cacheBust: true };
+    const exportH = Math.max(1232, clone.offsetHeight);
+    const options = { width: 800, height: exportH, pixelRatio: 2, cacheBust: true };
     let blob;
     try {
       blob = await htmlToImage.toBlob(clone, options);
@@ -2187,7 +2189,7 @@ async function downloadShareCardPng() {
   const isApple = isIOS();
   const defaultText = isApple ? "Save to Photos" : "Download image";
   const oldText = textEl ? textEl.textContent : defaultText;
-  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1200p…";
+  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1232p…";
   if (btn) btn.disabled = true;
 
   try {
