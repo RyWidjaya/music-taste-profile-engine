@@ -2122,6 +2122,12 @@ a { color: inherit; }
   color: #F7F5FA;
 }
 
+.sc-leg li.is-other .sc-leg-name {
+  font-size: 2.7cqw;
+  font-weight: 400;
+  color: #766E80;
+}
+
 .sc-leg-pct {
   font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   font-size: 2.6cqw;
@@ -2134,6 +2140,10 @@ a { color: inherit; }
 .sc-leg li.is-primary .sc-leg-pct {
   font-weight: 600;
   color: #F7F5FA;
+}
+
+.sc-leg li.is-other .sc-leg-pct {
+  color: #766E80;
 }
 
 .sc-split-bar {
@@ -2154,22 +2164,24 @@ a { color: inherit; }
 .sc-tracks {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2.8cqw;
+  min-height: 20cqw;
 }
 
 .sc-track-row {
   display: flex;
   align-items: center;
-  gap: 2.4cqw;
+  gap: 2.8cqw;
   min-width: 0;
 }
 
 .sc-track-left {
-  width: 21cqw;
+  width: 24cqw;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 1.8cqw;
+  gap: 2.2cqw;
 }
 
 .sc-track-glyph {
@@ -2198,8 +2210,8 @@ a { color: inherit; }
   height: 9cqw;
   min-width: 36px;
   min-height: 36px;
-  max-width: 38px;
-  max-height: 38px;
+  max-width: 36px;
+  max-height: 36px;
   border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;

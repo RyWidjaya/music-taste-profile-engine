@@ -1626,7 +1626,7 @@ function computeConvexHull(pts) {
 function computeRefinedRadarMap(userSongs, anchorTrack, outlierTrack) {
   const size = 120;
   const mid = 60;
-  const safeR = 33; // safe plotting disk radius (77% of outer radius 43px), zero overlap with outside axis labels
+  const safeR = 35; // safe plotting disk radius (~82% of outer radius 43px), keeping dots and rings cleanly inside rim with zero overlap on outside axis labels
 
   // 1. Group songs by persona and compute category centroids
   const catMap = new Map();
@@ -1813,25 +1813,44 @@ function updateShareCardData() {
       : `With a streak of <strong>${esc(nameOf(entries[1].persona))}</strong><span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
   }
 
-  // Anchor and Outlier track identification
+  // Anchor and Outlier track identification (n < 3 edge case: hide Outlier, display only Anchor)
   const userSongs = p.user_songs || [];
   let anchor = p.anchor;
-  let outlier = p.outlier;
-  if ((!anchor || !outlier) && userSongs.length > 0) {
-    if (userSongs.length === 1) {
-      anchor = userSongs[0];
-      outlier = userSongs[0];
+  let outlier = userSongs.length < 3 ? null : p.outlier;
+  if (outlier && anchor && outlier.track_id === anchor.track_id) {
+    outlier = null;
+  }
+  if (!anchor && userSongs.length > 0) {
+    if (userSongs.length < 3) {
+      let anchorIdx = 0;
+      if (userSongs.length === 2) {
+        const p0Dom = userSongs[0].persona === top.persona;
+        const p1Dom = userSongs[1].persona === top.persona;
+        if (!p0Dom && p1Dom) anchorIdx = 1;
+      }
+      anchor = userSongs[anchorIdx];
+      outlier = null;
     } else {
       const dists = userSongs.map((s1, i) => {
         let sum = 0;
         userSongs.forEach((s2, j) => {
           if (i !== j) sum += Math.hypot((s1.pca_x || 0) - (s2.pca_x || 0), (s1.pca_y || 0) - (s2.pca_y || 0));
         });
-        return { track: s1, sum };
+        return { track: s1, sum, isDominant: s1.persona === top.persona };
       });
-      dists.sort((a, b) => a.sum - b.sum);
-      anchor = dists[0].track;
-      outlier = dists[dists.length - 1].track;
+      const forAnchor = [...dists].sort((a, b) => {
+        if (Math.abs(a.sum - b.sum) > 1e-6) return a.sum - b.sum;
+        if (a.isDominant !== b.isDominant) return a.isDominant ? -1 : 1;
+        return 0;
+      });
+      anchor = forAnchor[0].track;
+
+      const forOutlier = dists.filter((d) => d.track.track_id !== anchor.track_id).sort((a, b) => {
+        if (Math.abs(a.sum - b.sum) > 1e-6) return b.sum - a.sum;
+        if (a.isDominant !== b.isDominant) return a.isDominant ? 1 : -1;
+        return 0;
+      });
+      outlier = forOutlier.length > 0 ? forOutlier[0].track : null;
     }
   }
 
@@ -1894,11 +1913,11 @@ function updateShareCardData() {
       <line x1="17" y1="60" x2="103" y2="60" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
       <line x1="60" y1="17" x2="60" y2="103" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
 
-      <!-- Outside axis labels with left and right rotated 90 degrees -->
-      <text x="60" y="8.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">UPBEAT</text>
-      <text x="60" y="112.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">MOODY</text>
-      <text x="7.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(-90 7.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">ACOUSTIC</text>
-      <text x="112.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(90 112.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.45">INTENSE</text>
+      <!-- Outside axis labels with left and right rotated 90 degrees (~32-35% opacity) -->
+      <text x="60" y="8.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">UPBEAT</text>
+      <text x="60" y="112.5" text-anchor="middle" dy="0.3em" font-size="6.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">MOODY</text>
+      <text x="7.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(-90 7.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">ACOUSTIC</text>
+      <text x="112.5" y="60" text-anchor="middle" dy="0.3em" transform="rotate(90 112.5 60)" font-size="6.0" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">INTENSE</text>
 
       <polygon points="${hullPts}" fill="${hexToRgba(dominantColor, 0.14)}" stroke="${hexToRgba(dominantColor, 0.48)}" stroke-width="1.25" stroke-linejoin="round" />
       ${chords}
@@ -1908,52 +1927,83 @@ function updateShareCardData() {
     `;
   }
 
-  // Sound Mix Legend
-  const top3 = entries.slice(0, Math.min(entries.length, 3));
+  // Sound Mix Legend & Proportional Continuous Split Bar (1-4 named vs 5+ sounds rules)
   const legEl = document.getElementById("sc-leg");
-  if (legEl) {
-    legEl.innerHTML = top3.map((e, idx) => `
-      <li class="${idx === 0 ? 'is-primary' : ''}">
-        <div class="sc-leg-left">
-          <span class="sc-leg-dot" style="background-color: ${colorOf(e.persona)}"></span>
-          <span class="sc-leg-name">${esc(nameOf(e.persona))}</span>
-        </div>
-        <span class="sc-leg-pct">${e.pct}%</span>
-      </li>
-    `).join("");
-  }
-
-  // Proportional Continuous Split Bar (scaled strictly to actual percentages, remainder in muted grey)
   const splitBarEl = document.getElementById("sc-split-bar");
-  if (splitBarEl) {
-    const topSum = top3.reduce((sum, e) => sum + e.pct, 0);
-    const barSegments = top3.map((e) => `
-      <div style="flex: ${e.pct} 0 0%; background-color: ${colorOf(e.persona)}; border-radius: 999px;"></div>
-    `);
-    if (topSum < 100) {
-      const rem = 100 - topSum;
-      barSegments.push(`
-        <div style="flex: ${rem} 0 0%; background-color: rgba(255, 255, 255, 0.14); border-radius: 999px;" title="+${rem}% other sounds"></div>
-      `);
+  if (entries.length <= 4) {
+    // 1 to 4 sounds: List all clusters by name in legend, map 1:1 to mix bar
+    if (legEl) {
+      legEl.innerHTML = entries.map((e, idx) => `
+        <li class="${idx === 0 ? 'is-primary' : ''}">
+          <div class="sc-leg-left">
+            <span class="sc-leg-dot" style="background-color: ${colorOf(e.persona)}"></span>
+            <span class="sc-leg-name" title="${esc(nameOf(e.persona))}">${esc(nameOf(e.persona))}</span>
+          </div>
+          <span class="sc-leg-pct">${e.pct}%</span>
+        </li>
+      `).join("");
     }
-    splitBarEl.innerHTML = barSegments.join("");
+    if (splitBarEl) {
+      splitBarEl.innerHTML = entries.map((e) => `
+        <div style="flex: ${e.pct} 0 0%; background-color: ${colorOf(e.persona)}; border-radius: 999px;"></div>
+      `).join("");
+    }
+  } else {
+    // 5 or more sounds: Top 3 by name + muted 4th row "+{remainingCount} other sounds"
+    const top3 = entries.slice(0, 3);
+    const remCount = entries.length - 3;
+    const topSum = top3.reduce((sum, e) => sum + e.pct, 0);
+    const remPct = Math.max(0, 100 - topSum);
+
+    if (legEl) {
+      const top3HTML = top3.map((e, idx) => `
+        <li class="${idx === 0 ? 'is-primary' : ''}">
+          <div class="sc-leg-left">
+            <span class="sc-leg-dot" style="background-color: ${colorOf(e.persona)}"></span>
+            <span class="sc-leg-name" title="${esc(nameOf(e.persona))}">${esc(nameOf(e.persona))}</span>
+          </div>
+          <span class="sc-leg-pct">${e.pct}%</span>
+        </li>
+      `).join("");
+      const otherRowHTML = `
+        <li class="is-other">
+          <div class="sc-leg-left">
+            <span class="sc-leg-dot" style="background-color: rgba(255, 255, 255, 0.22);"></span>
+            <span class="sc-leg-name">+${remCount} other sound${remCount === 1 ? '' : 's'}</span>
+          </div>
+          <span class="sc-leg-pct">${remPct}%</span>
+        </li>
+      `;
+      legEl.innerHTML = top3HTML + otherRowHTML;
+    }
+
+    if (splitBarEl) {
+      const segs = top3.map((e) => `
+        <div style="flex: ${e.pct} 0 0%; background-color: ${colorOf(e.persona)}; border-radius: 999px;"></div>
+      `);
+      segs.push(`
+        <div style="flex: ${remPct} 0 0%; background-color: rgba(255, 255, 255, 0.14); border-radius: 999px;" title="+${remPct}% other sounds"></div>
+      `);
+      splitBarEl.innerHTML = segs.join("");
+    }
   }
 
-  // 4. Key Tracks: Restructured 2-Line Stacked Layout with Album Art
+  // 4. Key Tracks: Restructured 2-Line Stacked Layout with Album Art (n < 3 edge case supported)
   const tracksEl = document.getElementById("sc-tracks");
-  if (tracksEl && anchor && outlier) {
+  if (tracksEl && anchor) {
     const anchorColor = colorOf(anchor.persona);
-    const outlierColor = colorOf(outlier.persona);
+    const hasOutlier = Boolean(outlier && outlier.track_id !== anchor.track_id);
+    const outlierColor = hasOutlier ? colorOf(outlier.persona) : null;
 
     const anchorGlyph = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
       <circle cx="6" cy="6" r="5.1" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.05" />
       <circle cx="6" cy="6" r="2.6" fill="${anchorColor}" />
     </svg>`;
 
-    const outlierGlyph = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+    const outlierGlyph = hasOutlier ? `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
       <circle cx="6" cy="6" r="5.1" stroke="${outlierColor}" stroke-width="1.1" stroke-dasharray="2.1 1.7" />
       <circle cx="6" cy="6" r="2.6" fill="${outlierColor}" />
-    </svg>`;
+    </svg>` : '';
 
     const renderThumb = (trackId, color) => {
       const known = artUrls.get(trackId);
@@ -1962,7 +2012,7 @@ function updateShareCardData() {
       return `<div class="sc-track-thumb" data-art="${esc(trackId)}">${imgTag}${fallback}</div>`;
     };
 
-    tracksEl.innerHTML = `
+    const anchorRowHTML = `
       <div class="sc-track-row">
         <div class="sc-track-left">
           <span class="sc-track-glyph">${anchorGlyph}</span>
@@ -1974,6 +2024,9 @@ function updateShareCardData() {
           <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
         </div>
       </div>
+    `;
+
+    const outlierRowHTML = hasOutlier ? `
       <div class="sc-track-row">
         <div class="sc-track-left">
           <span class="sc-track-glyph">${outlierGlyph}</span>
@@ -1985,11 +2038,12 @@ function updateShareCardData() {
           <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
         </div>
       </div>
-    `;
+    ` : '';
 
-    // Hydrate album art for Anchor and Outlier
-    [anchor.track_id, outlier.track_id].forEach((id) => {
-      if (!id) return;
+    tracksEl.innerHTML = anchorRowHTML + outlierRowHTML;
+
+    // Hydrate album art for Anchor and Outlier (if present)
+    [anchor.track_id, hasOutlier ? outlier.track_id : null].filter(Boolean).forEach((id) => {
       getArt(id).then((url) => {
         if (!url) return;
         const thumb = tracksEl.querySelector(`[data-art="${id}"]`);

@@ -87,37 +87,57 @@ def taste_profile(track_ids, data):
     anchor_track = None
     outlier_track = None
 
+    def _track_dict(row):
+        return {
+            'track_id': str(row['track_id']),
+            'track_name': str(row['track_name']),
+            'artists': str(row['artists']),
+            'album_name': str(row.get('album_name', '')),
+            'persona': str(row['persona']),
+            'pca_x': float(row['pca_x']),
+            'pca_y': float(row['pca_y']),
+        }
+
     if n_tracks > 0:
+        dominant_persona = str(selected['persona'].mode()[0])
+
         if n_tracks == 1:
-            row0 = selected.iloc[0]
-            anchor_track = {
-                'track_id': str(row0['track_id']),
-                'track_name': str(row0['track_name']),
-                'artists': str(row0['artists']),
-                'album_name': str(row0.get('album_name', '')),
-                'persona': str(row0['persona']),
-                'pca_x': float(row0['pca_x']),
-                'pca_y': float(row0['pca_y']),
-            }
-            outlier_track = anchor_track
+            anchor_track = _track_dict(selected.iloc[0])
+            outlier_track = None
+        elif n_tracks == 2:
+            # When n < 3: Two songs are equidistant, so neither is an outlier.
+            # Hide the Outlier completely, displaying only Anchor.
+            # Tie-break: prefer the track belonging to the user's dominant cluster.
+            p0_dom = str(selected.iloc[0]['persona']) == dominant_persona
+            p1_dom = str(selected.iloc[1]['persona']) == dominant_persona
+            anchor_idx = 1 if (not p0_dom and p1_dom) else 0
+            anchor_track = _track_dict(selected.iloc[anchor_idx])
+            outlier_track = None
         else:
             diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
             dist_matrix = np.sqrt(np.sum(diff**2, axis=-1))
             combined_dists = dist_matrix.sum(axis=1)
 
-            min_idx = int(np.argmin(combined_dists))
-            max_idx = int(np.argmax(combined_dists))
+            # Anchor: smallest combined Euclidean distance
+            # Tie-break: prefer the track belonging to the user's dominant cluster
+            min_dist = np.min(combined_dists)
+            min_candidates = np.where(np.isclose(combined_dists, min_dist, atol=1e-6))[0]
+            if len(min_candidates) > 1:
+                dom_candidates = [idx for idx in min_candidates if str(selected.iloc[idx]['persona']) == dominant_persona]
+                min_idx = dom_candidates[0] if dom_candidates else int(min_candidates[0])
+            else:
+                min_idx = int(min_candidates[0])
 
-            def _track_dict(row):
-                return {
-                    'track_id': str(row['track_id']),
-                    'track_name': str(row['track_name']),
-                    'artists': str(row['artists']),
-                    'album_name': str(row.get('album_name', '')),
-                    'persona': str(row['persona']),
-                    'pca_x': float(row['pca_x']),
-                    'pca_y': float(row['pca_y']),
-                }
+            # Outlier: largest combined Euclidean distance, strictly enforcing outlierIndex !== anchorIndex
+            dists_for_outlier = combined_dists.copy()
+            dists_for_outlier[min_idx] = -np.inf
+            max_dist = np.max(dists_for_outlier)
+            max_candidates = [idx for idx in range(n_tracks) if idx != min_idx and np.isclose(dists_for_outlier[idx], max_dist, atol=1e-6)]
+            if len(max_candidates) > 1:
+                non_dom = [idx for idx in max_candidates if str(selected.iloc[idx]['persona']) != dominant_persona]
+                max_idx = non_dom[0] if non_dom else int(max_candidates[0])
+            else:
+                max_idx = int(max_candidates[0])
 
             anchor_track = _track_dict(selected.iloc[min_idx])
             outlier_track = _track_dict(selected.iloc[max_idx])
