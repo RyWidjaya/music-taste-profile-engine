@@ -15,12 +15,12 @@
         "acousticness"
     ],
     "personas": {
-        "0": "Synth & Club",
+        "0": "Dark Pulse & Synth",
         "1": "Vocal & Rhythmic",
-        "2": "Bright Pop & Groove",
+        "2": "Bright & Groovy",
         "3": "Unplugged & Intimate",
-        "4": "Heavy & Live",
-        "5": "Ambient & Drone",
-        "6": "Driven Alt & Punk"
+        "4": "Upbeat & Anthemic",
+        "5": "Ambient & Cinematic",
+        "6": "Fast & Intense"
     }
 }

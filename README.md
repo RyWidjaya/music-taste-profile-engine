@@ -121,13 +121,13 @@ Sonality takes a **strictly unsupervised approach**: rather than relying on nois
 
 | Cluster | Sound Persona | Distinguishing Acoustic Signature | Common Genres / Representative Tracks |
 | :---: | :--- | :--- | :--- |
-| **0** | **Heavy & Live** | Ultra-high intensity (+1.55), High liveness (+0.70), High tempo (+0.57) | Metalcore, Heavy Metal, Hard Rock, Punk |
-| **1** | **Driven Alt & Punk** | High tempo (+0.80), Low intensity (-0.98), Low speechiness (-0.66) | Alternative, Indie Rock, Dark Wave, Post-Punk |
-| **2** | **Synth & Club** | Ultra-high instrumentalness (+1.87), High intensity (+0.86) | Techno, House, EDM, Breakbeat, Trance |
-| **3** | **Vocal & Rhythmic** | High speechiness (+1.52), High danceability (+0.83) | Hip-Hop, Rap, Dancehall, Trap |
-| **4** | **Bright Pop & Groove** | High valence (+0.83), High danceability (+0.69), High intensity (+0.69) | Dance-Pop, Disco, Salsa, Funk, Upbeat Pop |
-| **5** | **Unplugged & Intimate** | Low intensity (-1.31), Low tempo (-1.02), Low speechiness (-0.65) | Acoustic, Folk, Singer-Songwriter, Ballads |
-| **6** | **Ambient & Drone** | Ultra-low intensity (-2.70), High instrumentalness (+1.90), Low valence (-1.09) | Ambient, Classical, Sleep, New-Age, Drone |
+| **0** | **Dark Pulse & Synth** | Ultra-high instrumentalness (+1.88), High intensity (+0.80), Low valence (-0.48) | Techno, House, EDM, Breakbeat, Trance, Synthwave |
+| **1** | **Vocal & Rhythmic** | High speechiness (+1.58), High danceability (+0.77) | Hip-Hop, Rap, Dancehall, Trap, R&B |
+| **2** | **Bright & Groovy** | High valence (+0.73), High danceability (+0.67), Low liveness (-0.84) | Dance-Pop, Disco, Salsa, Funk, Upbeat Pop |
+| **3** | **Unplugged & Intimate** | Low intensity (-1.38), Low speechiness (-0.75), Acoustic vocal | Acoustic, Folk, Singer-Songwriter, Ballads |
+| **4** | **Upbeat & Anthemic** | High liveness (+1.17), High valence (+0.64), High intensity (+0.64) | Arena Rock, Pop-Rock, Live Anthems, Festival Pop |
+| **5** | **Ambient & Cinematic** | Ultra-low intensity (-2.70), High instrumentalness (+1.90), Low valence (-1.08) | Ambient, Classical, Cinematic Score, Sleep, Drone |
+| **6** | **Fast & Intense** | Ultra-high intensity (+1.60), High tempo (+0.86), Low danceability (-0.69) | Alternative Rock, Metal, Punk, Hardcore, High-BPM Electronic |
 
 ---
 

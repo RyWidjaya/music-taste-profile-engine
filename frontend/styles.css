@@ -19,13 +19,19 @@
   --on-accent: #2A1A12;
   --danger: #F39A92;
 
-  --persona-heavy-live: #EA6C5A;
-  --persona-bright-pop: #F6C343;
+  --persona-dark-pulse: #8398FE;
   --persona-vocal-rhythmic: #F8A9C9;
-  --persona-synth-club: #8398FE;
-  --persona-driven-alt: #DC6ED0;
+  --persona-bright-groovy: #F6C343;
   --persona-unplugged: #7DF29C;
+  --persona-upbeat-anthemic: #EA6C5A;
   --persona-ambient: #3EAB8F;
+  --persona-fast-intense: #DC6ED0;
+
+  /* Backward compatibility aliases */
+  --persona-heavy-live: var(--persona-upbeat-anthemic);
+  --persona-bright-pop: var(--persona-bright-groovy);
+  --persona-synth-club: var(--persona-dark-pulse);
+  --persona-driven-alt: var(--persona-fast-intense);
 
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: "Instrument Sans", "Helvetica Neue", Arial, system-ui, sans-serif;

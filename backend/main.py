@@ -358,7 +358,10 @@ def get_taste_profile(request: TasteProfileRequest, background_tasks: Background
 
     # Delegate the pure mathematical computation to backend/engine.py
     # engine.py is imported which contains the KMeans Algorithm function required which is called upon and its output is returned
-    profile = taste_profile(track_ids, data)
+    try:
+        profile = taste_profile(track_ids, data)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
     # Server-side background pre-warming: fetch previews for recommended songs ahead of time
     def prewarm_recs(recs):

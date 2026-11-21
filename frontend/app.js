@@ -8,12 +8,18 @@ const FALLBACK_DATASET_SIZE = 127900;
 const DIVERSITY_THRESHOLDS = { focused: 0.35, eclectic: 0.65 };
 
 const PERSONA_COLOR_VARS = {
-  "Heavy & Live": "--persona-heavy-live",
-  "Bright Pop & Groove": "--persona-bright-pop",
+  "Dark Pulse & Synth": "--persona-dark-pulse",
   "Vocal & Rhythmic": "--persona-vocal-rhythmic",
-  "Synth & Club": "--persona-synth-club",
-  "Driven Alt & Punk": "--persona-driven-alt",
+  "Bright & Groovy": "--persona-bright-groovy",
   "Unplugged & Intimate": "--persona-unplugged",
+  "Upbeat & Anthemic": "--persona-upbeat-anthemic",
+  "Ambient & Cinematic": "--persona-ambient",
+  "Fast & Intense": "--persona-fast-intense",
+  // Backwards compatibility mappings for older sessions or cached results
+  "Heavy & Live": "--persona-upbeat-anthemic",
+  "Bright Pop & Groove": "--persona-bright-groovy",
+  "Synth & Club": "--persona-dark-pulse",
+  "Driven Alt & Punk": "--persona-fast-intense",
   "Ambient & Drone": "--persona-ambient",
 };
 const PERSONA_COLORS = {};
@@ -22,25 +28,45 @@ const PERSONA_COLORS = {};
 // cluster id; sorting the same way keeps headline, ring and recommendations in agreement.
 // Keep in sync with the notebook's persona_names; k-means renumbers clusters on retrain.
 const PERSONA_CLUSTER_ID = {
-  "Synth & Club": 0,
+  "Dark Pulse & Synth": 0,
   "Vocal & Rhythmic": 1,
-  "Bright Pop & Groove": 2,
+  "Bright & Groovy": 2,
   "Unplugged & Intimate": 3,
+  "Upbeat & Anthemic": 4,
+  "Ambient & Cinematic": 5,
+  "Fast & Intense": 6,
+  // Backwards compatibility
+  "Synth & Club": 0,
+  "Bright Pop & Groove": 2,
   "Heavy & Live": 4,
   "Ambient & Drone": 5,
   "Driven Alt & Punk": 6,
 };
-const PERSONA_ORDER = Object.keys(PERSONA_CLUSTER_ID).sort((a, b) => PERSONA_CLUSTER_ID[a] - PERSONA_CLUSTER_ID[b]);
+const PERSONA_ORDER = [
+  "Dark Pulse & Synth",
+  "Vocal & Rhythmic",
+  "Bright & Groovy",
+  "Unplugged & Intimate",
+  "Upbeat & Anthemic",
+  "Ambient & Cinematic",
+  "Fast & Intense",
+];
 
 // Keyed by the data name so the backend never changes; a rename is a one-line edit here.
 const PERSONA_DISPLAY = {
-  "Bright Pop & Groove": { name: "Bright Pop & Groove", blurb: "Happy, danceable, built for singing along in the car.", traits: ["happy", "danceable", "fairly energetic"], stats: "mood (valence) +0.83, danceability +0.67, energy +0.46" },
-  "Vocal & Rhythmic": { name: "Vocal & Rhythmic", blurb: "Lots of lyrics and lots of rhythm. The voice is the instrument.", traits: ["lots of spoken or rapped words", "danceable", "upbeat"], stats: "speechiness +1.35, danceability +0.80, mood (valence) +0.41" },
-  "Heavy & Live": { name: "Heavy & Live", blurb: "Loud, high-energy, often recorded in front of a crowd.", traits: ["high energy", "loud", "sounds live"], stats: "energy +0.93, loudness +0.66, liveness +0.62" },
-  "Synth & Club": { name: "Synth & Club", blurb: "Instrumental, driving and a little dark. Made for dance floors, not singalongs.", traits: ["mostly instrumental", "energetic", "darker mood"], stats: "instrumentalness +1.62, energy +0.59, mood (valence) −0.46" },
-  "Unplugged & Intimate": { name: "Unplugged & Intimate", blurb: "Slow, acoustic and close, like someone playing for the room instead of a stage.", traits: ["slow", "acoustic", "gentle"], stats: "tempo −1.00, acousticness +0.86, energy −0.85" },
-  "Ambient & Drone": { name: "Ambient & Drone", blurb: "Barely there. Very quiet, mostly instrumental, more atmosphere than song.", traits: ["very quiet", "mostly instrumental", "very low energy"], stats: "loudness −2.25, instrumentalness +2.05, energy −1.77" },
-  "Driven Alt & Punk": { name: "Driven Alt & Punk", blurb: "Quick tempo, driving guitar riffs, alternative rock and punk energy.", traits: ["quick tempo", "punchy guitars", "driving energy"], stats: "tempo +0.80, energy +0.65, speechiness +0.56" },
+  "Bright & Groovy": { name: "Bright & Groovy", blurb: "Joyful, upbeat, danceable rhythms built for singing along and vibrant energy.", traits: ["joyful", "danceable", "dynamic"], stats: "valence +0.73, danceability +0.67, liveness −0.84" },
+  "Vocal & Rhythmic": { name: "Vocal & Rhythmic", blurb: "Lots of lyrics and lots of rhythm. The voice is the primary instrument.", traits: ["lyric-driven", "rhythmic", "danceable"], stats: "speechiness +1.58, danceability +0.77, valence +0.34" },
+  "Upbeat & Anthemic": { name: "Upbeat & Anthemic", blurb: "Energetic, bright, expansive production built for live stages and crowd euphoria.", traits: ["live atmosphere", "bright energy", "anthemic punch"], stats: "liveness +1.17, valence +0.64, intensity +0.64" },
+  "Dark Pulse & Synth": { name: "Dark Pulse & Synth", blurb: "Moody, driving electronic textures and hypnotic instrumental grooves.", traits: ["mostly instrumental", "driving pulse", "darker mood"], stats: "instrumentalness +1.88, intensity +0.80, valence −0.48" },
+  "Unplugged & Intimate": { name: "Unplugged & Intimate", blurb: "Acoustic, warm, and close, like someone playing for the room instead of a stage.", traits: ["acoustic", "warm & gentle", "vocal intimacy"], stats: "intensity −1.38, speechiness −0.75, acoustic vocal" },
+  "Ambient & Cinematic": { name: "Ambient & Cinematic", blurb: "Quiet, atmospheric, instrumental soundscapes, score-like textures, and deep space.", traits: ["atmospheric", "pure instrumental", "delicate & serene"], stats: "intensity −2.70, instrumentalness +1.90, valence −1.08" },
+  "Fast & Intense": { name: "Fast & Intense", blurb: "Driving, high-BPM velocity and explosive intensity across rock, metal, electronic, and punchy pop.", traits: ["high velocity", "electric intensity", "relentless drive"], stats: "intensity +1.60, tempo +0.86, danceability −0.69" },
+  // Backwards compatibility aliases
+  "Bright Pop & Groove": { name: "Bright & Groovy", blurb: "Joyful, upbeat, danceable rhythms built for singing along and vibrant energy.", traits: ["joyful", "danceable", "dynamic"], stats: "valence +0.73, danceability +0.67, liveness −0.84" },
+  "Heavy & Live": { name: "Upbeat & Anthemic", blurb: "Energetic, bright, expansive production built for live stages and crowd euphoria.", traits: ["live atmosphere", "bright energy", "anthemic punch"], stats: "liveness +1.17, valence +0.64, intensity +0.64" },
+  "Synth & Club": { name: "Dark Pulse & Synth", blurb: "Moody, driving electronic textures and hypnotic instrumental grooves.", traits: ["mostly instrumental", "driving pulse", "darker mood"], stats: "instrumentalness +1.88, intensity +0.80, valence −0.48" },
+  "Ambient & Drone": { name: "Ambient & Cinematic", blurb: "Quiet, atmospheric, instrumental soundscapes, score-like textures, and deep space.", traits: ["atmospheric", "pure instrumental", "delicate & serene"], stats: "intensity −2.70, instrumentalness +1.90, valence −1.08" },
+  "Driven Alt & Punk": { name: "Fast & Intense", blurb: "Driving, high-BPM velocity and explosive intensity across rock, metal, electronic, and punchy pop.", traits: ["high velocity", "electric intensity", "relentless drive"], stats: "intensity +1.60, tempo +0.86, danceability −0.69" },
 };
 
 // Hard-coded from the PCA loadings (pca_2d.components_ in models/pca_2d.joblib) over

@@ -12,6 +12,7 @@ def taste_profile(track_ids, data):
       3. Percentiles: Benchmark user's audio traits against the global population.
       4. Recommendations: Top 3 nearest-neighbor songs in the user's dominant persona.
       5. User Songs: Coordinates (pca_x, pca_y) for 2D Sound Map visualization.
+      6. Anchor & Outlier: Medoid track and furthest track for taste fingerprinting.
 
     Parameters:
       track_ids (list[str]): List of unique Spotify track IDs.
@@ -22,6 +23,8 @@ def taste_profile(track_ids, data):
     """
     
     selected = data[data['track_id'].isin(track_ids)]
+    if selected.empty:
+        raise ValueError("No valid track IDs found")
 
     # Persona Breakdown - % Breakdown of each Cluster 
     breakdown = selected['persona'].value_counts(normalize=True).to_dict()
@@ -99,7 +102,7 @@ def taste_profile(track_ids, data):
         }
 
     if n_tracks > 0:
-        dominant_persona = str(selected['persona'].mode()[0])
+        dominant_persona = str(top_cluster_features['persona'].iloc[0])
 
         if n_tracks == 1:
             anchor_track = _track_dict(selected.iloc[0])
