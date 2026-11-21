@@ -1653,6 +1653,14 @@ function updateShareCardData() {
     metaEl.innerHTML = `${matched} songs<span class="sc-sep">&middot;</span>vs. ${fmtInt(state.datasetSize || 127900)} tracks`;
   }
 
+  const urlEl = document.getElementById("sc-url");
+  if (urlEl) {
+    const host = window.location.hostname;
+    urlEl.textContent = (host && host !== "localhost" && host !== "127.0.0.1")
+      ? host
+      : "app.sonality.workers.dev";
+  }
+
   const bigEl = document.getElementById("sc-big");
   if (bigEl) bigEl.textContent = `${top.pct}%`;
 

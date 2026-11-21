@@ -2121,7 +2121,9 @@ a { color: inherit; }
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font: 400 2.6cqw "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  gap: 1.5cqw;
+  font: 400 2.3cqw "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  white-space: nowrap;
 }
 
 .sc-foot span:first-child { color: rgba(244, 242, 247, 0.55); }
