@@ -21,7 +21,7 @@ import requests
 import urllib.parse
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -159,6 +159,25 @@ def serve_index():
 # styles.css, app.js, favicon.svg and the logo files live next to index.html
 if os.path.isdir(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+@app.get("/robots.txt", include_in_schema=False)
+def serve_robots():
+    """Instructs Googlebot and search engine crawlers to index the site."""
+    return PlainTextResponse("User-agent: *\nAllow: /\nSitemap: https://app.sonality.workers.dev/sitemap.xml\n", media_type="text/plain")
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def serve_sitemap():
+    """XML sitemap for Google Search Console and web crawlers."""
+    xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://app.sonality.workers.dev/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>"""
+    return Response(content=xml_content, media_type="application/xml")
+
 
 
 # ─── ROUTE 0: SYSTEM HEALTH CHECK ─────────────────────────────────────────────
