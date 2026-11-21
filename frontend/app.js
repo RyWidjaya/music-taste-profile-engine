@@ -1619,37 +1619,108 @@ function computeConvexHull(pts) {
   return lower.concat(upper);
 }
 
-function computeRadarMap(songs, anchorId, outlierId) {
+/**
+ * Clean Category Centroids + Anchor + Outlier Radar
+ * Clamped strictly to safeR = 34px (63% of outer R=54) so dots and rings never collide with axis text.
+ */
+function computeRefinedRadarMap(userSongs, anchorTrack, outlierTrack) {
   const size = 116;
   const mid = 58;
-  const maxR = 40;
+  const safeR = 34; // 63% of outer radius (54px), guaranteeing >=12px clearance to axis labels
 
-  const maxMag = Math.max(1.5, ...songs.map((s) => Math.hypot(s.pca_x || 0, s.pca_y || 0)));
+  // 1. Group songs by persona and compute category centroids
+  const catMap = new Map();
+  userSongs.forEach((s) => {
+    const p = s.persona;
+    if (!catMap.has(p)) catMap.set(p, []);
+    catMap.get(p).push(s);
+  });
 
-  const nodes = songs.map((s, idx) => {
-    const rawX = (s.pca_x || 0) / maxMag;
-    const rawY = (s.pca_y || 0) / maxMag;
+  const categoryCentroids = [];
+  catMap.forEach((songsInCat, persona) => {
+    const avgX = songsInCat.reduce((sum, s) => sum + (s.pca_x || 0), 0) / songsInCat.length;
+    const avgY = songsInCat.reduce((sum, s) => sum + (s.pca_y || 0), 0) / songsInCat.length;
+    categoryCentroids.push({
+      persona,
+      count: songsInCat.length,
+      pca_x: avgX,
+      pca_y: avgY,
+    });
+  });
+
+  // 2. Normalize and project all key points into the safe plotting disk
+  const allPoints = [...categoryCentroids];
+  if (anchorTrack) allPoints.push(anchorTrack);
+  if (outlierTrack && (!anchorTrack || outlierTrack.track_id !== anchorTrack.track_id)) {
+    allPoints.push(outlierTrack);
+  }
+
+  const maxMag = Math.max(1.5, ...allPoints.map((s) => Math.hypot(s.pca_x || 0, s.pca_y || 0)));
+
+  const projectPoint = (x, y) => {
+    const rawX = (x || 0) / maxMag;
+    const rawY = (y || 0) / maxMag;
     const mag = Math.hypot(rawX, rawY);
-    const scale = mag > 0.85 ? 0.85 / mag : 1;
-    const nx = rawX * scale;
-    const ny = rawY * scale;
-    const isAnchor = anchorId ? s.track_id === anchorId : idx === 0;
-    const isOutlier = outlierId ? s.track_id === outlierId : idx === songs.length - 1;
-    const role = isAnchor ? "anchor" : isOutlier ? "outlier" : "member";
+    const clampedNorm = Math.min(1, mag);
+    const angle = Math.atan2(rawY, rawX);
+    const r = clampedNorm * safeR;
     return {
-      ...s,
-      idx,
-      role,
-      px: mid + nx * maxR,
-      py: mid - ny * maxR,
+      px: mid + Math.cos(angle) * r,
+      py: mid - Math.sin(angle) * r,
+    };
+  };
+
+  // Category dots
+  const catNodes = categoryCentroids.map((c) => {
+    const pt = projectPoint(c.pca_x, c.pca_y);
+    return {
+      type: "category",
+      persona: c.persona,
+      count: c.count,
+      px: pt.px,
+      py: pt.py,
     };
   });
 
-  const hull = computeConvexHull(nodes);
-  const anchorNode = nodes.find((n) => n.role === "anchor") || nodes[0];
-  const outlierNode = nodes.find((n) => n.role === "outlier") || nodes[nodes.length - 1];
+  // Anchor and Outlier nodes
+  let anchorNode = null;
+  if (anchorTrack) {
+    const pt = projectPoint(anchorTrack.pca_x, anchorTrack.pca_y);
+    anchorNode = {
+      type: "anchor",
+      persona: anchorTrack.persona,
+      track_name: anchorTrack.track_name,
+      artists: anchorTrack.artists,
+      px: pt.px,
+      py: pt.py,
+    };
+  }
 
-  return { size, mid, nodes, hull, anchorNode, outlierNode };
+  let outlierNode = null;
+  if (outlierTrack) {
+    const pt = projectPoint(outlierTrack.pca_x, outlierTrack.pca_y);
+    outlierNode = {
+      type: "outlier",
+      persona: outlierTrack.persona,
+      track_name: outlierTrack.track_name,
+      artists: outlierTrack.artists,
+      px: pt.px,
+      py: pt.py,
+    };
+  }
+
+  // Combined polygon nodes
+  const hullNodes = [...catNodes];
+  if (anchorNode && !hullNodes.some((n) => Math.hypot(n.px - anchorNode.px, n.py - anchorNode.py) < 3)) {
+    hullNodes.push(anchorNode);
+  }
+  if (outlierNode && !hullNodes.some((n) => Math.hypot(n.px - outlierNode.px, n.py - outlierNode.py) < 3)) {
+    hullNodes.push(outlierNode);
+  }
+
+  const hull = computeConvexHull(hullNodes);
+
+  return { size, mid, safeR, catNodes, anchorNode, outlierNode, hull };
 }
 
 function openShareModal() {
@@ -1698,7 +1769,7 @@ function closeShareModal() {
 }
 
 function fitCard(c) {
-  // Editorial Craft card scales organically with 4:5 aspect ratio and container query units (cqw)
+  // Editorial Craft card scales organically with 400x565 aspect ratio and container query units (cqw)
 }
 
 function updateShareCardData() {
@@ -1742,7 +1813,7 @@ function updateShareCardData() {
       : `With a streak of <strong>${esc(nameOf(entries[1].persona))}</strong><span class="sc-sep">&middot;</span>${entries.length} of 7 sounds`;
   }
 
-  // Anchor and Outlier track calculation
+  // Anchor and Outlier track identification
   const userSongs = p.user_songs || [];
   let anchor = p.anchor;
   let outlier = p.outlier;
@@ -1764,35 +1835,57 @@ function updateShareCardData() {
     }
   }
 
-  // 3. Centerpiece: Circular Radar SVG
+  // 3. Centerpiece: Circular Radar SVG (Category Centroids + Anchor & Outlier)
   const radarSvg = document.getElementById("sc-radar-svg");
   if (radarSvg && userSongs.length > 0) {
-    const mapData = computeRadarMap(userSongs, anchor && anchor.track_id, outlier && outlier.track_id);
-    const anchorNode = mapData.anchorNode;
+    const mapData = computeRefinedRadarMap(userSongs, anchor, outlier);
     const hullPts = mapData.hull.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(" ");
 
-    const chords = mapData.nodes
-      .filter((n) => n.role !== "anchor")
-      .map((n) => `<line x1="${anchorNode.px.toFixed(1)}" y1="${anchorNode.py.toFixed(1)}" x2="${n.px.toFixed(1)}" y2="${n.py.toFixed(1)}" stroke="${hexToRgba(dominantColor, 0.32)}" stroke-width="1" />`)
-      .join("");
+    // Chords from anchor to category centroids and outlier
+    let chords = "";
+    if (mapData.anchorNode) {
+      const anc = mapData.anchorNode;
+      const otherPoints = [...mapData.catNodes];
+      if (mapData.outlierNode && mapData.outlierNode !== anc) {
+        otherPoints.push(mapData.outlierNode);
+      }
+      chords = otherPoints
+        .filter((n) => Math.hypot(n.px - anc.px, n.py - anc.py) > 2)
+        .map((n) => `<line x1="${anc.px.toFixed(1)}" y1="${anc.py.toFixed(1)}" x2="${n.px.toFixed(1)}" y2="${n.py.toFixed(1)}" stroke="${hexToRgba(dominantColor, 0.28)}" stroke-width="1" />`)
+        .join("");
+    }
 
-    const sortedNodes = [...mapData.nodes].sort((a, b) => {
-      const ord = { member: 0, outlier: 1, anchor: 2 };
-      return (ord[a.role] || 0) - (ord[b.role] || 0);
-    });
-
-    const dotsSVG = sortedNodes.map((n) => {
+    // Category Centroid dots
+    const catDotsSVG = mapData.catNodes.map((n) => {
       const c = colorOf(n.persona);
       const px = n.px.toFixed(1);
       const py = n.py.toFixed(1);
-      let ring = "";
-      if (n.role === "anchor") {
-        ring = `<circle cx="${px}" cy="${py}" r="9.5" fill="none" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.1" />`;
-      } else if (n.role === "outlier") {
-        ring = `<circle cx="${px}" cy="${py}" r="10" fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="2.5 2" />`;
-      }
-      return `${ring}<circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />`;
+      return `<circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />`;
     }).join("");
+
+    // Anchor node (solid halo ring)
+    let anchorDotSVG = "";
+    if (mapData.anchorNode) {
+      const px = mapData.anchorNode.px.toFixed(1);
+      const py = mapData.anchorNode.py.toFixed(1);
+      const c = colorOf(mapData.anchorNode.persona);
+      anchorDotSVG = `
+        <circle cx="${px}" cy="${py}" r="9.5" fill="none" stroke="rgba(255, 255, 255, 0.44)" stroke-width="1.1" />
+        <circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />
+      `;
+    }
+
+    // Outlier node (dashed colored ring)
+    let outlierDotSVG = "";
+    if (mapData.outlierNode && mapData.outlierNode !== mapData.anchorNode) {
+      const px = mapData.outlierNode.px.toFixed(1);
+      const py = mapData.outlierNode.py.toFixed(1);
+      const c = colorOf(mapData.outlierNode.persona);
+      outlierDotSVG = `
+        <circle cx="${px}" cy="${py}" r="10" fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="2.5 2" />
+        <circle cx="${px}" cy="${py}" r="4.5" fill="${c}" stroke="#141117" stroke-width="2" />
+      `;
+    }
 
     radarSvg.innerHTML = `
       <circle cx="58" cy="58" r="54" fill="rgba(255, 255, 255, 0.016)" stroke="rgba(255, 255, 255, 0.13)" stroke-width="1" />
@@ -1800,21 +1893,26 @@ function updateShareCardData() {
       <circle cx="58" cy="58" r="18" fill="none" stroke="rgba(255, 255, 255, 0.065)" stroke-width="1" stroke-dasharray="2 3" />
       <line x1="4" y1="58" x2="112" y2="58" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
       <line x1="58" y1="4" x2="58" y2="112" stroke="rgba(255, 255, 255, 0.055)" stroke-width="1" />
-      <text x="58" y="14" text-anchor="middle" font-size="7.5" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.65">UPBEAT</text>
-      <text x="58" y="106" text-anchor="middle" font-size="7.5" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.65">MOODY</text>
-      <text x="8" y="60.5" text-anchor="start" font-size="6.8" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.65">ACOUSTIC</text>
-      <text x="108" y="60.5" text-anchor="end" font-size="6.8" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.65">INTENSE</text>
+
+      <!-- Low-contrast axis labels tucked cleanly near the outer circle with >=12px clearance to safe plotting disk -->
+      <text x="58" y="12" text-anchor="middle" font-size="7.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">UPBEAT</text>
+      <text x="58" y="107" text-anchor="middle" font-size="7.2" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.08em" opacity="0.34">MOODY</text>
+      <text x="7" y="60.5" text-anchor="start" font-size="6.6" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.34">ACOUSTIC</text>
+      <text x="109" y="60.5" text-anchor="end" font-size="6.6" font-family="'IBM Plex Mono', monospace" fill="#766E80" letter-spacing="0.06em" opacity="0.34">INTENSE</text>
+
       <polygon points="${hullPts}" fill="${hexToRgba(dominantColor, 0.14)}" stroke="${hexToRgba(dominantColor, 0.48)}" stroke-width="1.25" stroke-linejoin="round" />
       ${chords}
-      ${dotsSVG}
+      ${catDotsSVG}
+      ${outlierDotSVG}
+      ${anchorDotSVG}
     `;
   }
 
-  // Sound Mix Legend & Proportional Continuous Split Bar
-  const mixEntries = entries.slice(0, Math.min(entries.length, 3));
+  // Sound Mix Legend
+  const top3 = entries.slice(0, Math.min(entries.length, 3));
   const legEl = document.getElementById("sc-leg");
   if (legEl) {
-    legEl.innerHTML = mixEntries.map((e, idx) => `
+    legEl.innerHTML = top3.map((e, idx) => `
       <li class="${idx === 0 ? 'is-primary' : ''}">
         <div class="sc-leg-left">
           <span class="sc-leg-dot" style="background-color: ${colorOf(e.persona)}"></span>
@@ -1824,14 +1922,24 @@ function updateShareCardData() {
       </li>
     `).join("");
   }
+
+  // Proportional Continuous Split Bar (scaled strictly to actual percentages, remainder in muted grey)
   const splitBarEl = document.getElementById("sc-split-bar");
   if (splitBarEl) {
-    splitBarEl.innerHTML = mixEntries.map((e) => `
-      <div style="flex: ${e.pct} 0 0%; background-color: ${colorOf(e.persona)};"></div>
-    `).join("");
+    const topSum = top3.reduce((sum, e) => sum + e.pct, 0);
+    const barSegments = top3.map((e) => `
+      <div style="flex: ${e.pct} 0 0%; background-color: ${colorOf(e.persona)}; border-radius: 999px;"></div>
+    `);
+    if (topSum < 100) {
+      const rem = 100 - topSum;
+      barSegments.push(`
+        <div style="flex: ${rem} 0 0%; background-color: rgba(255, 255, 255, 0.14); border-radius: 999px;" title="+${rem}% other sounds"></div>
+      `);
+    }
+    splitBarEl.innerHTML = barSegments.join("");
   }
 
-  // 4. Key Tracks: Anchor & Outlier with Album Art
+  // 4. Key Tracks: Restructured 2-Line Stacked Layout with Album Art
   const tracksEl = document.getElementById("sc-tracks");
   if (tracksEl && anchor && outlier) {
     const anchorColor = colorOf(anchor.persona);
@@ -1856,18 +1964,26 @@ function updateShareCardData() {
 
     tracksEl.innerHTML = `
       <div class="sc-track-row">
-        <span class="sc-track-glyph">${anchorGlyph}</span>
-        <span class="sc-track-tag">Anchor</span>
+        <div class="sc-track-left">
+          <span class="sc-track-glyph">${anchorGlyph}</span>
+          <span class="sc-track-tag">Anchor</span>
+        </div>
         ${renderThumb(anchor.track_id, anchorColor)}
-        <span class="sc-track-title" title="${esc(anchor.track_name)}">${esc(anchor.track_name)}</span>
-        <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
+        <div class="sc-track-info">
+          <span class="sc-track-title" title="${esc(anchor.track_name)}">${esc(anchor.track_name)}</span>
+          <span class="sc-track-artist" title="${esc(anchor.artists)}">${esc(anchor.artists)}</span>
+        </div>
       </div>
       <div class="sc-track-row">
-        <span class="sc-track-glyph">${outlierGlyph}</span>
-        <span class="sc-track-tag">Outlier</span>
+        <div class="sc-track-left">
+          <span class="sc-track-glyph">${outlierGlyph}</span>
+          <span class="sc-track-tag">Outlier</span>
+        </div>
         ${renderThumb(outlier.track_id, outlierColor)}
-        <span class="sc-track-title" title="${esc(outlier.track_name)}">${esc(outlier.track_name)}</span>
-        <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
+        <div class="sc-track-info">
+          <span class="sc-track-title" title="${esc(outlier.track_name)}">${esc(outlier.track_name)}</span>
+          <span class="sc-track-artist" title="${esc(outlier.artists)}">${esc(outlier.artists)}</span>
+        </div>
       </div>
     `;
 
@@ -1949,9 +2065,10 @@ async function exportShareCardBlob() {
   const card = document.getElementById("share-card");
   if (!card) throw new Error("Share card element not found");
 
+  // 400x565 logical aspect ratio -> 800x1130 at 2x retina
   const stage = document.createElement("div");
   stage.className = "sc-frame";
-  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:1080px;height:1350px;border-radius:0;box-shadow:none;background:#141117;z-index:-1;";
+  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:800px;height:1130px;border-radius:0;box-shadow:none;background:#141117;z-index:-1;";
   const clone = card.cloneNode(true);
   clone.removeAttribute("id");
   stage.appendChild(clone);
@@ -1960,7 +2077,7 @@ async function exportShareCardBlob() {
   try {
     fitCard(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const options = { width: 1080, height: 1350, pixelRatio: 1, cacheBust: true };
+    const options = { width: 800, height: 1130, pixelRatio: 2, cacheBust: true };
     let blob;
     try {
       blob = await htmlToImage.toBlob(clone, options);
@@ -1979,7 +2096,7 @@ async function downloadShareCardPng() {
   const isApple = isIOS();
   const defaultText = isApple ? "Save to Photos" : "Download image";
   const oldText = textEl ? textEl.textContent : defaultText;
-  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1080p…";
+  if (textEl) textEl.textContent = isApple ? "Preparing…" : "Rendering 1130p…";
   if (btn) btn.disabled = true;
 
   try {
